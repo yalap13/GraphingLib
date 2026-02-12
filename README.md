@@ -68,7 +68,7 @@ Optional extras:
 
 ## Contributing
 
-We welcome contributions from the community. If you're interested in contributing to GraphingLib, please read our [contribution guidelines](https://graphinglib.org/doc-1.5.0/contributing/index.html) on our documentation website.
+We welcome contributions from the community. If you're interested in contributing to GraphingLib, please read our [contribution guidelines](https://graphinglib.org/latest/contributing/index.html) on our documentation website.
 
 
 ## Example
