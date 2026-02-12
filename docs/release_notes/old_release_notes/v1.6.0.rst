@@ -23,7 +23,7 @@ New Features
 Color bar parameters, color map range and histogram orientation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Added the color bar parameters (label, position, orientation, etc.) for `Scatter`, `Heatmap` and `Contour`. These can be specified by calling the `set_color_bar_params` method. Also, added the color map range, which can be specified with `color_map_range=(start, end)`. Added the possibility to plot a horizontal histogram with `orientation="horizontal"`.
+Added the color bar parameters (label, position, orientation, etc.) for ``Scatter``, ``Heatmap`` and ``Contour``. These can be specified by calling the ``set_color_bar_params`` method. Also, added the color map range, which can be specified with ``color_map_range=(start, end)``. Added the possibility to plot a horizontal histogram with ``orientation="horizontal"``.
 
 
 (`pr-566 <https://github.com/GraphingLib/GraphingLib/pull/566>`_)
@@ -112,14 +112,14 @@ Added a "rotation" parameter to the Text class to allow rotation of text element
 Added Ellipse class
 ^^^^^^^^^^^^^^^^^^^
 
-Added the `Ellipse` class to create and manipulate ellipse shapes, with properties for width, height, and circumference.
+Added the ``Ellipse`` class to create and manipulate ellipse shapes, with properties for width, height, and circumference.
 
 (`pr-602 <https://github.com/GraphingLib/GraphingLib/pull/602>`_)
 
 Text highlighting
 ^^^^^^^^^^^^^^^^^
 
-Added `highlight_color`, `highlight_alpha`, and `highlight_padding` parameters to the Text class.
+Added ``highlight_color``, ``highlight_alpha``, and ``highlight_padding`` parameters to the Text class.
 
 (`pr-603 <https://github.com/GraphingLib/GraphingLib/pull/603>`_)
 
@@ -130,17 +130,17 @@ Added a MathematicalObject Protocol class in graphinglib.tools to provide defaul
 
 (`pr-604 <https://github.com/GraphingLib/GraphingLib/pull/604>`_)
 
-Added `Plottable.copy_with` method
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Added ``Plottable.copy_with`` method
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Added a `copy_with` method to the `Plottable` class to create modified copies of Plottables with updated attributes.
+Added a ``copy_with`` method to the ``Plottable`` class to create modified copies of Plottables with updated attributes.
 
 (`pr-605 <https://github.com/GraphingLib/GraphingLib/pull/605>`_)
 
 Heatmap mesh properties
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-`Heatmap` now supports `x_mesh` and `y_mesh` properties to define the coordinates of the heatmap cells.
+``Heatmap`` now supports ``x_mesh`` and ``y_mesh`` properties to define the coordinates of the heatmap cells.
 
 
 (`pr-627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_)
@@ -148,15 +148,15 @@ Heatmap mesh properties
 Contour doesn't require mesh
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`Contour` now automatically generates mesh coordinates if `x_mesh` and `y_mesh` are not provided.
+``Contour`` now automatically generates mesh coordinates if ``x_mesh`` and ``y_mesh`` are not provided.
 
 
 (`pr-627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_)
 
-Contour `line_widths` property
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Contour ``line_widths`` property
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-`Contour` now includes a `line_widths` property to customize the width of contour lines, if not filled.
+``Contour`` now includes a ``line_widths`` property to customize the width of contour lines, if not filled.
 
 (`pr-627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_)
 
@@ -167,10 +167,10 @@ Added "style" parameter to the Arrow class, which can be ``"->"``, ``"-|>"``, ``
 
 (`pr-633 <https://github.com/GraphingLib/GraphingLib/pull/633>`_)
 
-`norm` parameter for `Heatmap`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+``norm`` parameter for ``Heatmap``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Added a `norm` parameter for `Heatmap` as exists for `imshow`.
+Added a ``norm`` parameter for ``Heatmap`` as exists for ``imshow``.
 
 
 (`pr-634 <https://github.com/GraphingLib/GraphingLib/pull/634>`_)
@@ -233,17 +233,17 @@ Updated all links to methods and functions in the handbook to ensure they are cl
 
 (`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
 
-Renamed `Heatmap` `alpha_value`
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Renamed ``Heatmap`` ``alpha_value``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Renamed the `alpha_value` parameter in the `Heatmap` class to `alpha` to maintain consistency with other `Plottable` classes.
+Renamed the ``alpha_value`` parameter in the ``Heatmap`` class to ``alpha`` to maintain consistency with other ``Plottable`` classes.
 
 (`pr-606 <https://github.com/GraphingLib/GraphingLib/pull/606>`_)
 
-Improved `copy_with` support
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Improved ``copy_with`` support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Added `copy_with` to all objects, and improved validation so only public writable properties can be overridden.
+Added ``copy_with`` to all objects, and improved validation so only public writable properties can be overridden.
 
 
 (`pr-637 <https://github.com/GraphingLib/GraphingLib/pull/637>`_)
@@ -293,9 +293,14 @@ Fixed a bug where the Polygon fill would not render when plotted on a Heatmap.
 NaNs are now ignored in to_desmos
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Not a number values (NaNs) are now ignored when calling the `to_desmos` method of `Plottable1D` objects.
+Not a number values (NaNs) are now ignored when calling the ``to_desmos`` method of ``Plottable1D`` objects.
 
 (`pr-607 <https://github.com/GraphingLib/GraphingLib/pull/607>`_)
+
+Deprecations
+------------
+
+- The ``MultiFigure`` is being deprecated in favor of the ``SmartFigure``.
 
 Contributors
 ------------
@@ -327,7 +332,7 @@ A total of 18 pull requests were merged for this release.
 
 * `#577 <https://github.com/GraphingLib/GraphingLib/pull/577>`_ : New ``set_grid`` method for more Figure grid customization
 
-* `#590 <https://github.com/GraphingLib/GraphingLib/pull/590>`_ : Introducing the `SmartFigure`
+* `#590 <https://github.com/GraphingLib/GraphingLib/pull/590>`_ : Introducing the ``SmartFigure``
 
 * `#591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_ : Miscellaneous corrections
 
@@ -337,7 +342,7 @@ A total of 18 pull requests were merged for this release.
 
 * `#603 <https://github.com/GraphingLib/GraphingLib/pull/603>`_ : Text highlighting
 
-* `#604 <https://github.com/GraphingLib/GraphingLib/pull/604>`_ : Added `MathematicalObject` Protocol Class
+* `#604 <https://github.com/GraphingLib/GraphingLib/pull/604>`_ : Added ``MathematicalObject`` Protocol Class
 
 * `#605 <https://github.com/GraphingLib/GraphingLib/pull/605>`_ : Plottable.copy_with method
 
@@ -345,7 +350,7 @@ A total of 18 pull requests were merged for this release.
 
 * `#607 <https://github.com/GraphingLib/GraphingLib/pull/607>`_ : Nans are now ignored in to_desmos method
 
-* `#627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_ : Added consistent `Heatmap` and `Contour` meshes
+* `#627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_ : Added consistent ``Heatmap`` and ``Contour`` meshes
 
 * `#633 <https://github.com/GraphingLib/GraphingLib/pull/633>`_ : Arrow styles
 
