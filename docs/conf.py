@@ -42,6 +42,7 @@ extensions = [
     "gallery_generator",
     "matplotlib.sphinxext.plot_directive",
     "release_notes_generator",
+    "sphinxext.opengraph",
 ]
 
 templates_path = ["_templates"]
@@ -117,3 +118,9 @@ numpydoc_show_class_members = False
 plot_include_source = True
 plot_html_show_source_link = False
 plot_pre_code = "import graphinglib as gl\nimport numpy as np"
+
+opg_site_url = "https://www.graphinglib.org/"
+opg_image = "https://raw.githubusercontent.com/GraphingLib/GraphingLib/main/images/opengraph_GL.PNG"
+opg_description = (
+    "GraphingLib : A Python library for creating publication-quality figures with ease."
+)
