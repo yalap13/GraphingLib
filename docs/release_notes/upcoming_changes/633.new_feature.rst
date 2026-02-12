@@ -1,3 +1,0 @@
-Added Arrow styles
-------------------
-Added "style" parameter to the Arrow class, which can be ``"->"``, ``"-|>"``, ``"-["``, ``"]->"``, ``"simple"``, ``"fancy"``, or ``"wedge"``.

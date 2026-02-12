@@ -1,3 +1,0 @@
-Added fit max_iterations
-------------------------
-Added a "max_iterations" parameter to fitting classes.

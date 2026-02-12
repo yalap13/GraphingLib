@@ -1,3 +1,0 @@
-Text highlighting
------------------
-Added `highlight_color`, `highlight_alpha`, and `highlight_padding` parameters to the Text class.

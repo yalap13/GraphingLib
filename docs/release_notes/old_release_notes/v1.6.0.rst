@@ -1,0 +1,355 @@
+
+.. _release_notes_1.6.0.dev:
+
+GraphingLib 1.6.0.dev Release Notes
+===================================
+
+Highlights
+----------
+
+- New :class:`~graphinglib.SmartFigure`, :class:`~graphinglib.SmartFigureWCS` and :class:`~graphinglib.SmartTwinAxis` that unify the :class:`Figure` and :class:`Multifigure` classes
+
+- New :class:`LengendElement` objects to create custom legend entries
+
+- New :class:`~graphinglib.PlottableAxMethod` object to use any plotting method from matplotlib
+
+- New :class:`~graphinglib.Ellipse` class
+
+- The ``to_desmos`` method for the ``Plottable1D`` classes allows export of a 1D plot into coordinates readable by Desmos
+
+New Features
+------------
+
+Color bar parameters, color map range and histogram orientation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added the color bar parameters (label, position, orientation, etc.) for `Scatter`, `Heatmap` and `Contour`. These can be specified by calling the `set_color_bar_params` method. Also, added the color map range, which can be specified with `color_map_range=(start, end)`. Added the possibility to plot a horizontal histogram with `orientation="horizontal"`.
+
+
+(`pr-566 <https://github.com/GraphingLib/GraphingLib/pull/566>`_)
+
+New custom ticks setting options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Custom ticks can now be specified even if labels are left unspecified. In that case, labels are automatically generated. New ``xtick_spacing`` and ``ytick_spacing`` options to set the spacing between each tick without specifying the tick explicit positions.
+
+(`pr-569 <https://github.com/GraphingLib/GraphingLib/pull/569>`_)
+
+New behaviour for Hlines and Vlines ``x_min``/``x_max`` or ``y_min``/``y_max``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Now optional and ``None`` by default, the lines are spanning the entire axes if left to ``None``. When specified, the behaviour is unchanged. 
+
+(`pr-571 <https://github.com/GraphingLib/GraphingLib/pull/571>`_)
+
+Plottable1D, Plottable2D, Plottable1D.to_desmos and Plottable1D.__eq__
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The new Plottable1D and Plottable2D dummy classes can be used for type hinting. Also, the Plottable1D.to_desmos method can now be used to export a Plottable1D into a list of coordinates, readable by Desmos. Every Plottable1D also now has a __eq__ method for comparing x and y data.
+
+(`pr-573 <https://github.com/GraphingLib/GraphingLib/pull/573>`_)
+
+New ``set_grid`` method for more Figure grid customization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added a new ``Figure.set_grid`` method to set the grid parameters and added parameter to set which grid lines to display (either ``"both"``, ``"major"`` or ``"minor"``) independently for both axes. 
+
+(`pr-577 <https://github.com/GraphingLib/GraphingLib/pull/577>`_)
+
+Added ``SmartFigure``, ``SmartFigureWCS`` and ``SmartTwinAxis``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added the ``SmartFigure``, ``SmartFigureWCS`` and ``SmartTwinAxis`` classes to unify ``Figure`` and ``MultiFigure`` in a single class as well as provide a complete way to customize the layout of the figure.
+
+
+(`pr-590 <https://github.com/GraphingLib/GraphingLib/pull/590>`_)
+
+Added ``SmartFigure`` handbook sections
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added the "Creating a simple figure with the ``SmartFigure``", "Advanced plotting with the ``SmartFigure``" and "Specialized SmartFigures for different projections" handbook sections to the documentation.
+
+
+(`pr-590 <https://github.com/GraphingLib/GraphingLib/pull/590>`_)
+
+Added ``LegendElement`` classes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added ``LegendLine``, ``LegendMarker`` and ``LegendPatch`` classes to create custom legend entries with the ``SmartFigure``.
+
+
+(`pr-590 <https://github.com/GraphingLib/GraphingLib/pull/590>`_)
+
+Added ``PlottableAxMethod``
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added the ``PlottableAxMethod`` class to allow users to create plots that aren't implemented in GraphingLib yet.
+
+(`pr-590 <https://github.com/GraphingLib/GraphingLib/pull/590>`_)
+
+Added fit max_iterations
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added a "max_iterations" parameter to fitting classes.
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Added alpha parameter
+^^^^^^^^^^^^^^^^^^^^^
+
+Added a "alpha" parameter to Curve, Fits, Scatter, Point, HLines, VLines, Text, Arrow and Line classes to control opacity.
+
+
+(`pr-595 <https://github.com/GraphingLib/GraphingLib/pull/595>`_)
+
+Added Text.rotation parameter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added a "rotation" parameter to the Text class to allow rotation of text elements.
+
+(`pr-595 <https://github.com/GraphingLib/GraphingLib/pull/595>`_)
+
+Added Ellipse class
+^^^^^^^^^^^^^^^^^^^
+
+Added the `Ellipse` class to create and manipulate ellipse shapes, with properties for width, height, and circumference.
+
+(`pr-602 <https://github.com/GraphingLib/GraphingLib/pull/602>`_)
+
+Text highlighting
+^^^^^^^^^^^^^^^^^
+
+Added `highlight_color`, `highlight_alpha`, and `highlight_padding` parameters to the Text class.
+
+(`pr-603 <https://github.com/GraphingLib/GraphingLib/pull/603>`_)
+
+Added MathematicalObject Protocol class
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added a MathematicalObject Protocol class in graphinglib.tools to provide default implementations for reverse and in-place mathematical operations.
+
+(`pr-604 <https://github.com/GraphingLib/GraphingLib/pull/604>`_)
+
+Added `Plottable.copy_with` method
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added a `copy_with` method to the `Plottable` class to create modified copies of Plottables with updated attributes.
+
+(`pr-605 <https://github.com/GraphingLib/GraphingLib/pull/605>`_)
+
+Heatmap mesh properties
+^^^^^^^^^^^^^^^^^^^^^^^
+
+`Heatmap` now supports `x_mesh` and `y_mesh` properties to define the coordinates of the heatmap cells.
+
+
+(`pr-627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_)
+
+Contour doesn't require mesh
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`Contour` now automatically generates mesh coordinates if `x_mesh` and `y_mesh` are not provided.
+
+
+(`pr-627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_)
+
+Contour `line_widths` property
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+`Contour` now includes a `line_widths` property to customize the width of contour lines, if not filled.
+
+(`pr-627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_)
+
+Added Arrow styles
+^^^^^^^^^^^^^^^^^^
+
+Added "style" parameter to the Arrow class, which can be ``"->"``, ``"-|>"``, ``"-["``, ``"]->"``, ``"simple"``, ``"fancy"``, or ``"wedge"``.
+
+(`pr-633 <https://github.com/GraphingLib/GraphingLib/pull/633>`_)
+
+`norm` parameter for `Heatmap`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added a `norm` parameter for `Heatmap` as exists for `imshow`.
+
+
+(`pr-634 <https://github.com/GraphingLib/GraphingLib/pull/634>`_)
+
+Improvements
+------------
+
+Renamed Histogram.number_of_bins
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Renamed parameter "number_of_bins" to "bins" in Histogram class for consistency and clarity since this parameter can be used to specify bin edges as well as the number of bins.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Improved Fits fitting range
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Modified Fits classes to choose their fitting range based on the minimum and maximum x-values of the provided data instead of the first and last points.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Improved Histogram.__init__ and Heatmap._plot_element
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Cleaned these methods by removing redundant code and improving readability.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Renamed Point.color to face_color
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Renamed the "color" parameter in the Point class to "face_color" for consistency with the Scatter class.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Transformed Heatmap._xy_range to a property
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+_xy_range is now a property to keep it updated if the axis ranges are modified after the Heatmap's creation.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Filling Curve between bounds now uses facecolor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Modified Curve._plot_element so it uses facecolor instead of color when filling between bounds to remove the solid contour.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Added valid links in handbook
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Updated all links to methods and functions in the handbook to ensure they are clickable. Also corrected some old method names in the handbook.
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Renamed `Heatmap` `alpha_value`
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Renamed the `alpha_value` parameter in the `Heatmap` class to `alpha` to maintain consistency with other `Plottable` classes.
+
+(`pr-606 <https://github.com/GraphingLib/GraphingLib/pull/606>`_)
+
+Improved `copy_with` support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Added `copy_with` to all objects, and improved validation so only public writable properties can be overridden.
+
+
+(`pr-637 <https://github.com/GraphingLib/GraphingLib/pull/637>`_)
+
+Bug Fixes
+---------
+
+Fixed bug in FitFromPolynomial.__str__
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Fixed a bug where the __str__ method would fail if the polynomial had a 0 coefficient.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Fixed bug of repeated Histogram parameters in figure legend
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Fixed a bug where showing multiple times the same Histogram in a figure would stack repeatedly its parameters in the legend.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Fixed SyntaxWarnings
+^^^^^^^^^^^^^^^^^^^^
+
+Added raw strings to remove SyntaxWarnings in strings containing backslashes.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Fixed Plottable1D.__eq__
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Fixed a bug where the data could not be compared since the truth value was ambiguous.
+
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+Fixed Polygon fill
+^^^^^^^^^^^^^^^^^^
+
+Fixed a bug where the Polygon fill would not render when plotted on a Heatmap.
+
+(`pr-591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_)
+
+NaNs are now ignored in to_desmos
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Not a number values (NaNs) are now ignored when calling the `to_desmos` method of `Plottable1D` objects.
+
+(`pr-607 <https://github.com/GraphingLib/GraphingLib/pull/607>`_)
+
+Contributors
+------------
+
+A total of 5 people contributed to this release.
+
+* `@mamar828 <https://github.com/mamar828>`_
+
+* `@Oddball777 <https://github.com/Oddball777>`_
+
+* `@Mykola-P <https://github.com/Mykola-P>`_
+
+* `@charlesantoineparent3 <https://github.com/charlesantoineparent3>`_
+
+* `@yalap13 <https://github.com/yalap13>`_
+
+Merged Pull Requests
+--------------------
+
+A total of 18 pull requests were merged for this release.
+
+* `#566 <https://github.com/GraphingLib/GraphingLib/pull/566>`_ : Color bar parameters, color map range and histogram orientation
+
+* `#569 <https://github.com/GraphingLib/GraphingLib/pull/569>`_ : Rework ticks setting method
+
+* `#571 <https://github.com/GraphingLib/GraphingLib/pull/571>`_ : New behaviour for Hlines and Vlines x_min/x_max or y_min/y_max
+
+* `#573 <https://github.com/GraphingLib/GraphingLib/pull/573>`_ : Added Plottable1D and Plottable2D dummy classes, Plottable1D.to_desmos and Plottable1D.__eq__.
+
+* `#577 <https://github.com/GraphingLib/GraphingLib/pull/577>`_ : New ``set_grid`` method for more Figure grid customization
+
+* `#590 <https://github.com/GraphingLib/GraphingLib/pull/590>`_ : Introducing the `SmartFigure`
+
+* `#591 <https://github.com/GraphingLib/GraphingLib/pull/591>`_ : Miscellaneous corrections
+
+* `#595 <https://github.com/GraphingLib/GraphingLib/pull/595>`_ : Alpha parameter for all Plottables and Text.rotation
+
+* `#602 <https://github.com/GraphingLib/GraphingLib/pull/602>`_ : Ellipse object
+
+* `#603 <https://github.com/GraphingLib/GraphingLib/pull/603>`_ : Text highlighting
+
+* `#604 <https://github.com/GraphingLib/GraphingLib/pull/604>`_ : Added `MathematicalObject` Protocol Class
+
+* `#605 <https://github.com/GraphingLib/GraphingLib/pull/605>`_ : Plottable.copy_with method
+
+* `#606 <https://github.com/GraphingLib/GraphingLib/pull/606>`_ : Renamed Heatmap alpha_value -> alpha
+
+* `#607 <https://github.com/GraphingLib/GraphingLib/pull/607>`_ : Nans are now ignored in to_desmos method
+
+* `#627 <https://github.com/GraphingLib/GraphingLib/pull/627>`_ : Added consistent `Heatmap` and `Contour` meshes
+
+* `#633 <https://github.com/GraphingLib/GraphingLib/pull/633>`_ : Arrow styles
+
+* `#634 <https://github.com/GraphingLib/GraphingLib/pull/634>`_ : Added norm param to Heatmap
+
+* `#637 <https://github.com/GraphingLib/GraphingLib/pull/637>`_ : Refactor copy_with into shared helper
+

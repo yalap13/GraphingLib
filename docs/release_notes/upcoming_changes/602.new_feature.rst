@@ -1,3 +1,0 @@
-Added Ellipse class
--------------------
-Added the `Ellipse` class to create and manipulate ellipse shapes, with properties for width, height, and circumference.
