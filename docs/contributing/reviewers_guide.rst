@@ -79,7 +79,7 @@ Patch version release workflow
 
 .. attention::
 
-    For a patch release, no updates are made on the ``main`` branch. If a bug correction has to be also applied to the next major/minor release, add an issue so that it is modified in the ``main`` branch. Unfortunately we don't have an automatic backporting method as of now.  
+    For a patch release, no updates are made on the ``main`` branch. If a bug correction has to be also applied to the next major/minor release see :ref:`the section on backporting <backporting>`.
 
 Here are the step to make a patch release:
 
@@ -98,3 +98,39 @@ Here are the step to make a patch release:
 4. Create a new ``doc/X.Y.Z`` branch from the ``maintenance/X.Y.Z`` branch.
 5. Bump version to ``X.Y.Z+1`` in ``pyproject.toml`` and ``setup.py``
 6. Manually trigger a build of the "latest" version on *Read the Docs* to update the project. If the version ``doc-X.Y.Z-1`` is still active, deactivate it. Activate the ``doc-X.Y.Z`` version. If this patch release is on the **latest major/minor version**, set this new version as default in admin settings, else no changes necessary.
+
+.. _backporting:
+
+Backporting changes to other branches
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+In the case of bug fixes made in a ``maintenance/X.Y.Z`` branch, the fix most likely has to be made in the ``main`` branch. This is where backporting comes in: you can "copy-paste" commits from the maintenance branch to the main branch by using ``git cherry-pick``.
+
+.. warning::
+
+   Using ``git cherry-pick`` can cause chaos in a repository. Prioritise merging instead of cherry-picking if possible.
+
+Here is a case where merging is not possible and cherry-picking has to be used ::
+
+    main --- A --- B --- G --- H ...
+                    \
+    maintenance      C --- D --- E ...
+
+Say in this case, we are working on the ``main`` branch, adding features for the next minor/major release, and we find a bug in the code dating back to before the divergence of the ``maintenance`` branch. In this case, we could fix the bug in the ``main`` branch, say in commit ``H``, but to apply those changes in the maintenance branch **without** adding any new features developped on the ``main`` branch, say commit ``G``, we use cherry-picking.
+
+First, make sure you checkout the maintenance branch in which you want to move the commit containing the bugfix ::
+
+    git checkout maintenance
+
+Next, cherry-pick the commit by using its hash (which you can find using ``git log`` for example) ::
+
+    git cherry-pick H
+
+At this point it is possible that there will be conflicts for you to resolve. Once the conflicts are resolved, you should have the following branch graph ::
+
+    main --- A --- B --- G --- H --- ...
+                    \
+    maintenance      C --- D --- E --- H ...
+                                       ^
+                                applied bugfix
+
