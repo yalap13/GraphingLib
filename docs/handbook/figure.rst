@@ -2,6 +2,10 @@
 Creating a simple :class:`~graphinglib.figure.Figure`
 =====================================================
 
+.. seealso::
+
+   Another way of creating a figure is by using the :class:`~graphinglib.SmartFigure`. See its :doc:`Handbook section </handbook/smart_figure_simple>`.
+
 Creating a basic figure using the :class:`~graphinglib.figure.Figure` object is easy. Here is an example of what plotting a sine function can look like.
 
 .. plot::
