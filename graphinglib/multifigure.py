@@ -39,7 +39,7 @@ class MultiFigure:
 
     .. warning::
 
-       The ``MultiFigure`` is deprecates in favor of the :class:`~graphinglib.SmartFigure`.
+       The ``MultiFigure`` is deprecated in favor of the :class:`~graphinglib.SmartFigure`.
 
     Parameters
     ----------
