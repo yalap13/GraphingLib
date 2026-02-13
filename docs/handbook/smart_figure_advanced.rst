@@ -1998,7 +1998,7 @@ Element Management
 Layout Design
 -------------
 
-1. **Use :py:meth:`~graphinglib.SmartFigure.copy_with` for variations:**
+1. **Use** :py:meth:`~graphinglib.SmartFigure.copy_with` **for variations:**
 
    Create a base figure and make copies with modifications instead of recreating from scratch.
 

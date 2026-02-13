@@ -102,13 +102,13 @@ Here are the step to make a patch release:
 .. _backporting:
 
 Backporting changes to other branches
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-------------------------------------
 
 In the case of bug fixes made in a ``maintenance/X.Y.Z`` branch, the fix most likely has to be made in the ``main`` branch. This is where backporting comes in: you can "copy-paste" commits from the maintenance branch to the main branch by using ``git cherry-pick``.
 
 .. warning::
 
-   Using ``git cherry-pick`` can cause chaos in a repository. Prioritise merging instead of cherry-picking if possible.
+   Using ``git cherry-pick`` can cause chaos in a repository if not used properly. Prioritise merging instead of cherry-picking whenever possible.
 
 Here is a case where merging is not possible and cherry-picking has to be used ::
 
@@ -118,7 +118,7 @@ Here is a case where merging is not possible and cherry-picking has to be used :
 
 Say in this case, we are working on the ``main`` branch, adding features for the next minor/major release, and we find a bug in the code dating back to before the divergence of the ``maintenance`` branch. In this case, we could fix the bug in the ``main`` branch, say in commit ``H``, but to apply those changes in the maintenance branch **without** adding any new features developped on the ``main`` branch, say commit ``G``, we use cherry-picking.
 
-First, make sure you checkout the maintenance branch in which you want to move the commit containing the bugfix ::
+First, make sure you checkout the ``maintenance`` branch in which you want to move the commit containing the bugfix ::
 
     git checkout maintenance
 

@@ -19,6 +19,10 @@ Install with **Poetry**: ::
 
     poetry add graphinglib
 
+Add with **uv**: ::
+
+    uv add graphinglib
+
 Usage
 -----
 
