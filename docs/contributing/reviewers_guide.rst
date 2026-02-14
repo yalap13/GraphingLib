@@ -112,11 +112,11 @@ In the case of bug fixes made in a ``maintenance/X.Y.Z`` branch, the fix most li
 
 Here is a case where merging is not possible and cherry-picking has to be used ::
 
-    main --- A --- B --- G --- H ...
+    main --- A --- B --- F --- G --- H
                     \
-    maintenance      C --- D --- E ...
+    maintenance      C --- D --- E
 
-Say in this case, we are working on the ``main`` branch, adding features for the next minor/major release, and we find a bug in the code dating back to before the divergence of the ``maintenance`` branch. In this case, we could fix the bug in the ``main`` branch, say in commit ``H``, but to apply those changes in the maintenance branch **without** adding any new features developped on the ``main`` branch, say commit ``G``, we use cherry-picking.
+Say in this case, we are working on the ``main`` branch, adding features for the next minor/major release, and we find a bug in the code dating back to before the divergence of the ``maintenance`` branch. In this case, we could fix the bug in the ``main`` branch, say in commit ``H``, but to apply those changes in the maintenance branch **without** adding any new features developped on the ``main`` branch, say commits ``F`` and ``G``, we use cherry-picking.
 
 First, make sure you checkout the ``maintenance`` branch in which you want to move the commit containing the bugfix ::
 
@@ -128,9 +128,9 @@ Next, cherry-pick the commit by using its hash (which you can find using ``git l
 
 At this point it is possible that there will be conflicts for you to resolve. Once the conflicts are resolved, you should have the following branch graph ::
 
-    main --- A --- B --- G --- H --- ...
+    main --- A --- B --- F --- G --- H
                     \
-    maintenance      C --- D --- E --- H ...
+    maintenance      C --- D --- E --- H
                                        ^
                                 applied bugfix
 
