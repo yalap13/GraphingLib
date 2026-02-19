@@ -36,6 +36,7 @@ dev = [
   "ruff>=0.15.0",
   "ty>=0.0.14",
   "sphinxext-opengraph>=0.13.0",
+  "pytest>=9.0.2",
 ]
 
 [build-system]
