@@ -2,7 +2,7 @@ sphinx-copybutton
 pydata-sphinx-theme
 numpy
 scipy
-matplotlib==3.9.4
+matplotlib
 PyYAML
 platformdirs
 sphinx-favicon
