@@ -31,8 +31,8 @@ GraphingLib has the following explicit goals:
 - **Curve Fitting:** Perform curve fitting with a single line of code.
 - **Curve Operations:** Carry out differentiation, integration, arithmetic, intersections, and other standard operations on Curve objects.
 - **GUI Style Editor:** Use the GraphingLib Style Editor to create and modify custom styles, and set them as your default style.
-- **MultiFigures:** Combine different Figure objects into one MultiFigure with one line of code.
 - **Polygon Manipulation:** Obtain useful information such as area, centroid, and perimeter of polygons, and manipulate them using transform and set operations methods.
+- **SmartFigures:** Create modular figures with multiple sub-figures and an intuitive syntax.
 
 ## Getting started
 
@@ -86,27 +86,22 @@ y_data = 3 * x_data**2 - 2 * x_data + np.random.normal(0, 10, 100)
 # Create elements
 scatter = gl.Scatter(x_data, y_data, label="Position data")
 fit = gl.FitFromPolynomial(scatter, degree=2, label="Fit", color="red")
-residuals = gl.Histogram.from_fit_residuals(fit, number_of_bins=15)
+residuals = gl.Histogram.from_fit_residuals(fit, bins=15)
 residuals.add_pdf("normal")
 
-# Create and show figures
-fig1 = gl.Figure(
-    x_label="Time [s]",
-    y_label="Position [mm]",
-    title="Position as a function of time",
+# Create and show figure
+fig = gl.SmartFigure(
+    num_cols=2,
+    num_rows=1,
+    size=(10, 5),
+    y_lim=[None, (0, 0.06)],
+    sub_x_labels=["Time [s]", "Distance from fit [mm]"],
+    sub_y_labels=["Position [mm]", "Frequency [-]"],
+    subtitles=["Position as a function of time", "Histogram of fit residuals"],
 )
-fig1.add_elements(scatter, fit)
-
-fig2 = gl.Figure(
-    y_lim=(0, 0.06),
-    x_label="Distance from fit [mm]",
-    y_label="Frequency [-]",
-    title="Histogram of fit residuals",
-)
-fig2.add_elements(residuals)
-
-multifigure = gl.MultiFigure.from_row([fig1, fig2], size=(10, 5))
-multifigure.show()
+fig[0] = [scatter, fit]
+fig[1] = [residuals]
+fig.show()
 ```
 
 ![image](images/example_fit.svg)
