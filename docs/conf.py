@@ -67,8 +67,8 @@ html_theme_options = {
         "image_dark": "../images/GraphingLib-Logo-Bolder.svg",
         "image_light": "../images/GraphingLib-Logo-Bolder.svg",
     },
-    "pygment_light_style": "tango",
-    "pygment_dark_style": "github-dark",
+    "pygments_light_style": "tango",
+    "pygments_dark_style": "github-dark",
     "show_toc_level": 2,
     "show_prev_next": False,
     "switcher": {

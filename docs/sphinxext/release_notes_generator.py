@@ -1,3 +1,4 @@
+from executing.executing import cache
 import json
 from collections import defaultdict
 from glob import glob
@@ -245,7 +246,8 @@ def main(app):
         update_github_cache(pr_dict, contrib_set, cache_path)
     else:
         print("Github: No update needed")
-        pr_dict, contrib_set = load_github_cache(cache_path)
+        cache_current_ver = load_github_cache(cache_path)[__version__.rstrip(".dev")]
+        pr_dict, contrib_set = cache_current_ver["prs"], set(cache_current_ver["contrib_set"])
 
     output += (
         "Contributors\n------------\n\n"
