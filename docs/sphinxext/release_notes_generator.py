@@ -4,6 +4,10 @@ from os.path import split, join, exists
 from collections import defaultdict
 from github import Github
 
+from pathlib import Path
+
+print(Path.cwd())
+
 
 RELEASE_NOTES_INDEX_TEMPLATE = """
 .. _release_notes:
