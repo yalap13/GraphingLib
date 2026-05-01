@@ -56,7 +56,7 @@ Here are the step to make a major or minor release.
    * If relevant, add a highlights file at ``doc/release_notes/upcoming_changes/highlights.rst`` with a bulleted list of highlights for the release. The file should contain only a bulleted list of highlights for the release. Do not add a title or underline, since this is handled automatically.
    * Build the documentation site locally (:ref:`see how to build the documentation <builddoc>`)
    * Delete the contents of the ``doc/release_notes/upcoming_changes`` directory, but keep the ``.gitkeep`` file.
-   * Update the ``switcher.json`` file to add a new documentation version with the following values: ::
+   * Update the ``switcher.json`` file to add a new documentation version entry with the following values: ::
      
        {
            "name": "X.Y",
@@ -68,7 +68,7 @@ Here are the step to make a major or minor release.
      Remove the ``"preferred": true`` line from the previous version.
    * Rebuild the documentation to make sure it builds without problems.
 
-4. Draft a release on GitHub by clicking on the "Draft a new release" button in the Releases section. For the tag, create a new ``vX.Y.0`` tag, and for the target, choose the ``maintenance/X.Y.x`` branch. Title should be ``GraphingLib X.Y.0 Release`` Copy the release notes from the documentation and adapt the syntax for Markdown.
+4. Draft a release on GitHub by clicking on the "Draft a new release" button in the Releases section. For the tag, create a new ``vX.Y.0`` tag, and for the target, choose the ``maintenance/X.Y.x`` branch. Title should be ``GraphingLib X.Y.0 Release``. Copy the release notes from the documentation and adapt the syntax for Markdown.
 5. Merge the ``maintenance/X.Y.x`` branch back into ``main``, without deleting the maintenance branch. Then, on ``main``:
 
    * In ``pyproject.toml`` and ``setup.py``, bump the version to the next minor version, ``X.Y+1.0``, or to ``X+1.0.0`` for a major version bump.
