@@ -1,7 +1,7 @@
+import json
 from collections import defaultdict
 from glob import glob
 from os.path import exists, join, split
-
 from github import Github
 
 from graphinglib import __version__
@@ -47,10 +47,7 @@ TAGS_TO_SECTIONS = {
 
 # Function to parse version number and return a tuple of integers
 def parse_version(version):
-    if "dev" in version:
-        return tuple(map(int, version.rstrip(".dev").lstrip("v").split(".")))
-    else:
-        return tuple(map(int, version.lstrip("v").split(".")))
+    return tuple(map(int, version.rstrip(".dev").lstrip("v").split(".")))
 
 
 def order_versions(version_numbers):
@@ -92,7 +89,7 @@ def fetch_new_files(path):
     for tag in sorted_upcoming.keys():
         sorted_upcoming[tag].sort()
     pr_list.sort()
-    return sorted_upcoming, pr_list
+    return sorted_upcoming, set(pr_list)
 
 
 def get_highlights(path):
@@ -105,19 +102,63 @@ def get_highlights(path):
     return None
 
 
-def get_github_info(pr_list):
+def get_github_info(pr_set):
     g = Github()
+    if g.get_rate_limit().rate.remaining == 0:
+        raise RuntimeError("Github API rate limit exceeded")
     org = g.get_organization("GraphingLib")
     repo = org.get_repo("GraphingLib")
     pr_dict = {}
     contrib_set = set()
-    for pr in pr_list:
+    for pr in pr_set:
+        if g.get_rate_limit().rate.remaining == 0:
+            raise RuntimeError("Github API rate limit exceeded")
         pull = repo.get_pull(int(pr))
         pr_dict[pull.title] = pr
         commits = pull.get_commits()
         for c in commits:
             contrib_set.add(c.author.login)
     return pr_dict, contrib_set
+
+
+def load_github_cache(cache_path):
+    with open(cache_path, "r") as file:
+        in_dict = json.load(file)
+    return in_dict
+
+
+def update_github_cache(pr_dict, contrib_set, cache_path):
+    current_ver = __version__.rstrip(".dev")
+    if not exists(cache_path) or ".dev" in __version__:
+        out_dict = {current_ver: {"prs": pr_dict, "contrib_set": list(contrib_set)}}
+    else:
+        in_dict = load_github_cache(cache_path)
+        if current_ver not in in_dict.keys():
+            in_dict.update(
+                {current_ver: {"prs": pr_dict, "contrib_set": list(contrib_set)}}
+            )
+            out_dict = in_dict
+        else:
+            in_dict[current_ver].update(
+                {"prs": pr_dict, "contrib_set": list(contrib_set)}
+            )
+            out_dict = in_dict
+    with open(cache_path, "w") as file:
+        json.dump(out_dict, file)
+
+
+def github_update_needed(pr_set, cache_path):
+    if not exists(cache_path):
+        print("cache does not exist")
+        return pr_set
+    current_ver = __version__.rstrip(".dev")
+    in_dict = load_github_cache(cache_path)
+    if current_ver not in in_dict.keys():
+        print("cache for version {} does not exist".format(current_ver))
+        return pr_set
+    pr_dict = in_dict[current_ver]["prs"]
+    to_fetch = [i for i in pr_set if i not in list(pr_dict.values())]
+    return to_fetch
 
 
 class ReleaseNoteEntry:
@@ -173,7 +214,8 @@ def main(app):
     old_v_path = join(app.builder.srcdir, "release_notes", "old_release_notes")
     upcoming_path = join(app.builder.srcdir, "release_notes", "upcoming_changes")
     target_path = join(app.builder.srcdir, "release_notes")
-    upcoming, pr_list = fetch_new_files(upcoming_path)
+    cache_path = join(app.builder.srcdir, "release_notes", ".github_cache.json")
+    upcoming, pr_set = fetch_new_files(upcoming_path)
     output = RELEASE_NOTES_TEMPLATE.format(version1=__version__, version2=__version__)
 
     highlights = get_highlights(upcoming_path)
@@ -200,7 +242,19 @@ def main(app):
                 output += "\n"
                 output += f"(`pr-{prn} <{pr_url}>`_)\n\n"
 
-    pr_dict, contrib_set = get_github_info(pr_list)
+    to_fetch = github_update_needed(pr_set, cache_path)
+    if to_fetch != []:
+        print("Github: Updating PR info")
+        pr_dict, contrib_set = get_github_info(to_fetch)
+        update_github_cache(pr_dict, contrib_set, cache_path)
+    else:
+        print("Github: No update needed")
+        cache_current_ver = load_github_cache(cache_path)[__version__.rstrip(".dev")]
+        pr_dict, contrib_set = (
+            cache_current_ver["prs"],
+            set(cache_current_ver["contrib_set"]),
+        )
+
     output += (
         "Contributors\n------------\n\n"
         + f"A total of {len(contrib_set)} people contributed to this release.\n\n"

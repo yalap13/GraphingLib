@@ -4,6 +4,7 @@ from copy import deepcopy
 from shutil import which
 from string import ascii_lowercase
 from typing import Optional
+from typing_extensions import deprecated
 
 import matplotlib.pyplot as plt
 from matplotlib import rcParamsDefault
@@ -30,12 +31,17 @@ except ImportError:
     from typing_extensions import Self
 
 
+@deprecated("Consider using the SmartFigure instead")
 class MultiFigure:
     """
     This class implements the "canvas" on which multiple plots are displayed.
 
     The canvas consists of a grid of a specified size on which the
     :class:`~graphinglib.figure.Figure` objects are displayed.
+
+    .. warning::
+
+       The ``MultiFigure`` is deprecated in favor of the :class:`~graphinglib.SmartFigure`.
 
     Parameters
     ----------

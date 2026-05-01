@@ -35,6 +35,8 @@ dev = [
   "astropy>=7.0.0,<8.0.0",
   "ruff>=0.15.0",
   "ty>=0.0.14",
+  "sphinxext-opengraph>=0.13.0",
+  "pytest>=9.0.2",
 ]
 
 [build-system]

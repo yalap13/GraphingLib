@@ -2,6 +2,10 @@
 Creating a :class:`~graphinglib.multifigure.MultiFigure`
 ========================================================
 
+.. warning::
+
+   The :class:`~graphinglib.MultiFigure` object is deprecated in favor of the :class:`~graphinglib.SmartFigure` object. See :doc:`/handbook/smart_figure_simple` to learn how to use it.
+
 To create a :class:`~graphinglib.multifigure.MultiFigure`, you first have to decide what size you want the canvas' grid to be. You control this by setting the values of ``num_rows`` and ``num_cols`` as shown in the figure below. This grid is then used to place each set of axes in the MultiFigure. These values are independent of the size of the canvas.
 
 .. image:: images/Canvas.png

@@ -2,6 +2,10 @@
 Creating a simple :class:`~graphinglib.figure.Figure`
 =====================================================
 
+.. seealso::
+
+   Another way of creating a figure is by using the :class:`~graphinglib.SmartFigure`. See its :doc:`Handbook section </handbook/smart_figure_simple>`.
+
 Creating a basic figure using the :class:`~graphinglib.figure.Figure` object is easy. Here is an example of what plotting a sine function can look like.
 
 .. plot::
@@ -17,7 +21,7 @@ The :py:meth:`~graphinglib.Figure.show` method is used to show the figure on scr
 
 .. seealso::
 
-    For the documentation on the :py:meth:`~graphinglib.Curve.from_function` method, see the :doc:`Reference section on the Curve object  <../generated/graphinglib.Curve>` or the :doc:`handbook section on curves </handbook/curve>`.
+    For the documentation on the :py:meth:`~graphinglib.Curve.from_function` method, see the :doc:`Reference section on the Curve object  </generated/graphinglib.Curve>` or the :doc:`handbook section on curves </handbook/curve>`.
 
 We can specify the axis labels by using the ``x_label`` and ``y_label`` parameters of the figure.
 
@@ -25,7 +29,7 @@ We can specify the axis labels by using the ``x_label`` and ``y_label`` paramete
 
     figure = gl.Figure(x_label="Time (s)", y_label="Potential (V)")
 
-For further informations on the available parameters, please refer to the :doc:`Reference section on Figure objects <../generated/graphinglib.Figure>`.
+For further informations on the available parameters, please refer to the :doc:`Reference section on Figure objects </generated/graphinglib.Figure>`.
 
 Figure styles
 --------------------------

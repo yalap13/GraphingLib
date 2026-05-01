@@ -42,6 +42,7 @@ extensions = [
     "gallery_generator",
     "matplotlib.sphinxext.plot_directive",
     "release_notes_generator",
+    "sphinxext.opengraph",
 ]
 
 templates_path = ["_templates"]
@@ -66,8 +67,8 @@ html_theme_options = {
         "image_dark": "../images/GraphingLib-Logo-Bolder.svg",
         "image_light": "../images/GraphingLib-Logo-Bolder.svg",
     },
-    "pygment_light_style": "tango",
-    "pygment_dark_style": "github-dark",
+    "pygments_light_style": "tango",
+    "pygments_dark_style": "github-dark",
     "show_toc_level": 2,
     "show_prev_next": False,
     "switcher": {
@@ -117,3 +118,9 @@ numpydoc_show_class_members = False
 plot_include_source = True
 plot_html_show_source_link = False
 plot_pre_code = "import graphinglib as gl\nimport numpy as np"
+
+opg_site_url = "https://www.graphinglib.org/"
+opg_image = "https://raw.githubusercontent.com/GraphingLib/GraphingLib/main/images/opengraph_GL.PNG"
+opg_description = (
+    "GraphingLib : A Python library for creating publication-quality figures with ease."
+)
