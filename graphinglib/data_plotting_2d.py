@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from .inherit import INHERIT, Inherit, is_inherit
+
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Callable, Literal, Optional, Protocol, runtime_checkable
+from typing import Callable, Optional, Protocol, runtime_checkable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -47,25 +49,32 @@ class Heatmap(Plottable2D):
     color_map : str, Colormap
         The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Can either be specified as a
         string (named colormap from Matplotlib) or a Colormap object.
+        Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
         Default depends on the ``figure_style`` configuration.
     color_map_range: tuple[float, float], optional
-        The data range that the color map will cover.
+        The data range covered by the color map, given as ``(minimum, maximum)``.
     show_color_bar : bool
         Whether or not to display the color bar next to the plot.
         Defaults to ``True``.
     alpha : float
         Opacity value of the :class:`~graphinglib.data_plotting_2d.Heatmap`.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Defaults to 1.0.
     aspect_ratio : str or float
         Aspect ratio of the axes. This value is ignored when ``x_mesh`` and ``y_mesh`` are provided.
+        Values include ``"auto"``, ``"equal"``, or a positive float.
         Default depends on the ``figure_style`` configuration.
     origin_position : str
         Position of the origin of the axes (upper left or lower left corner). This value is ignored when ``x_mesh`` and
         ``y_mesh`` are provided.
+        Values are ``"upper"`` and ``"lower"``.
         Default depends on the ``figure_style`` configuration.
     interpolation : str
         Interpolation method to be applied to the image. This value is ignored when ``x_mesh`` and ``y_mesh`` are
         provided.
+        Values include ``"none"``, ``"nearest"``, ``"bilinear"``, ``"bicubic"``, ``"spline16"``,
+        ``"spline36"``, ``"hanning"``, ``"hamming"``, ``"hermite"``, ``"kaiser"``, ``"quadric"``,
+        ``"catrom"``, ``"gaussian"``, ``"bessel"``, ``"mitchell"``, ``"sinc"``, and ``"lanczos"``.
         Defaults to ``"none"``.
 
         .. seealso::
@@ -83,12 +92,12 @@ class Heatmap(Plottable2D):
         y_axis_range: Optional[tuple[float, float]] = None,
         x_mesh: Optional[ArrayLike] = None,
         y_mesh: Optional[ArrayLike] = None,
-        color_map: str | Colormap = "default",
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
-        show_color_bar: bool | Literal["default"] = "default",
+        show_color_bar: bool | Inherit = INHERIT,
         alpha: float = 1.0,
-        aspect_ratio: str | float = "default",
-        origin_position: str = "default",
+        aspect_ratio: str | float | Inherit = INHERIT,
+        origin_position: str | Inherit = INHERIT,
         interpolation: str = "none",
         norm: Optional[str | Normalize] = None,
     ) -> None:
@@ -109,25 +118,32 @@ class Heatmap(Plottable2D):
         color_map : str, Colormap
             The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Can either be specified as a
             string (named colormap from Matplotlib) or a Colormap object.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Defaults to ``True``.
         alpha : float
             Opacity value of the :class:`~graphinglib.data_plotting_2d.Heatmap`.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Defaults to 1.0.
         aspect_ratio : str or float
             Aspect ratio of the axes. This value is ignored when ``x_mesh`` and ``y_mesh`` are provided.
+            Values include ``"auto"``, ``"equal"``, or a positive float.
             Default depends on the ``figure_style`` configuration.
         origin_position : str
             Position of the origin of the axes (upper left or lower left corner). This value is ignored when ``x_mesh``
             and ``y_mesh`` are provided.
+            Values are ``"upper"`` and ``"lower"``.
             Default depends on the ``figure_style`` configuration.
         interpolation : str
             Interpolation method to be applied to the image. This value is ignored when ``x_mesh`` and ``y_mesh`` are
             provided.
+            Values include ``"none"``, ``"nearest"``, ``"bilinear"``, ``"bicubic"``, ``"spline16"``,
+            ``"spline36"``, ``"hanning"``, ``"hamming"``, ``"hermite"``, ``"kaiser"``, ``"quadric"``,
+            ``"catrom"``, ``"gaussian"``, ``"bessel"``, ``"mitchell"``, ``"sinc"``, and ``"lanczos"``.
             Defaults to ``"none"``.
 
             .. seealso::
@@ -159,12 +175,12 @@ class Heatmap(Plottable2D):
         func: Callable[[ArrayLike, ArrayLike], ArrayLike],
         x_axis_range: tuple[float, float],
         y_axis_range: tuple[float, float],
-        color_map: str | Colormap = "default",
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
         show_color_bar: bool = True,
         alpha: float = 1.0,
-        aspect_ratio: str | float = "default",
-        origin_position: str = "default",
+        aspect_ratio: str | float | Inherit = INHERIT,
+        origin_position: str | Inherit = INHERIT,
         interpolation: str = "none",
         number_of_points: tuple[int, int] = (50, 50),
         norm: Optional[str | Normalize] = None,
@@ -181,23 +197,30 @@ class Heatmap(Plottable2D):
         color_map : str, Colormap
             The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Can either be specified as a
             string (named colormap from Matplotlib) or a Colormap object.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Defaults to ``True``.
         alpha : float
             Opacity value of the :class:`~graphinglib.data_plotting_2d.Heatmap`.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Defaults to 1.0.
         aspect_ratio : str or float
             Aspect ratio of the axes.
+            Values include ``"auto"``, ``"equal"``, or a positive float.
             Default depends on the ``figure_style`` configuration.
         origin_position : str
             Position of the origin of the axes (upper left or lower left corner).
+            Values are ``"upper"`` and ``"lower"``.
             Default depends on the ``figure_style`` configuration.
         interpolation : str
             Interpolation method to be applied to the image.
+            Values include ``"none"``, ``"nearest"``, ``"bilinear"``, ``"bicubic"``, ``"spline16"``,
+            ``"spline36"``, ``"hanning"``, ``"hamming"``, ``"hermite"``, ``"kaiser"``, ``"quadric"``,
+            ``"catrom"``, ``"gaussian"``, ``"bessel"``, ``"mitchell"``, ``"sinc"``, and ``"lanczos"``.
             Defaults to ``"none"``.
 
             .. seealso::
@@ -241,12 +264,12 @@ class Heatmap(Plottable2D):
         y_axis_range: tuple[float, float],
         grid_interpolation: str = "nearest",
         fill_value: float = np.nan,
-        color_map: str | Colormap = "default",
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
         show_color_bar: bool = True,
         alpha: float = 1.0,
-        aspect_ratio: str | float = "default",
-        origin_position: str = "default",
+        aspect_ratio: str | float | Inherit = INHERIT,
+        origin_position: str | Inherit = INHERIT,
         interpolation: str = "none",
         number_of_points: tuple[int, int] = (50, 50),
         norm: Optional[str | Normalize] = None,
@@ -264,27 +287,34 @@ class Heatmap(Plottable2D):
             The range of x and y values used for the axes as tuples containing the start and end of the range.
         grid_interpolation : str
             Interpolation method to be used when interpolating the uneavenly distributed data on a grid.
-            Must be one of {"nearest", "linear", "cubic"}.
+            Values are ``"nearest"``, ``"linear"``, and ``"cubic"``.
         color_map : str, Colormap
             The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Can either be specified as a
             string (named colormap from Matplotlib) or a Colormap object.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Defaults to ``True``.
         alpha : float
             Opacity value of the :class:`~graphinglib.data_plotting_2d.Heatmap`.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Defaults to 1.0.
         aspect_ratio : str or float
             Aspect ratio of the axes.
+            Values include ``"auto"``, ``"equal"``, or a positive float.
             Default depends on the ``figure_style`` configuration.
         origin_position : str
             Position of the origin of the axes (upper left or lower left corner).
+            Values are ``"upper"`` and ``"lower"``.
             Default depends on the ``figure_style`` configuration.
         interpolation : str
             Interpolation method to be applied to the image.
+            Values include ``"none"``, ``"nearest"``, ``"bilinear"``, ``"bicubic"``, ``"spline16"``,
+            ``"spline36"``, ``"hanning"``, ``"hamming"``, ``"hermite"``, ``"kaiser"``, ``"quadric"``,
+            ``"catrom"``, ``"gaussian"``, ``"bessel"``, ``"mitchell"``, ``"sinc"``, and ``"lanczos"``.
             Defaults to ``"none"``.
 
             .. seealso::
@@ -460,6 +490,7 @@ class Heatmap(Plottable2D):
             color bar (vertical if the color bar is plotted on the "left" or "right",
             horizontal otherwise). If None, the color bar is plotted on the right
             side of the ``Figure``.
+            Values are ``"left"``, ``"right"``, ``"top"``, and ``"bottom"``.
         **color_bar_params:
             Additional keyword arguments are passed to ``plt.colorbar`` call.
         """
@@ -484,7 +515,7 @@ class Heatmap(Plottable2D):
             params["vmax"] = max(self._color_map_range)
         use_pcolormesh = self._x_mesh is not None and self._y_mesh is not None
         if use_pcolormesh:
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             image = axes.pcolormesh(
                 self._x_mesh,
                 self._y_mesh,
@@ -502,7 +533,7 @@ class Heatmap(Plottable2D):
                 }
             )
 
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             image = axes.imshow(
                 self._image,
                 zorder=z_order,
@@ -526,9 +557,11 @@ class VectorField(Plottable2D):
         Magnitudes in the x and y coordinates.
     arrow_width : float
         Width of the arrow shaft. Acts as a multiplier for the standard arrow width.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     arrow_head_size : float
         Size of the arrow head. Acts as a multiplier for the standard arrow head size.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     scale : float
         Scaling of the arrow lengths. If ``None``, the arrows will be automatically scaled to look nice. Use 1 for no scaling.
@@ -538,6 +571,12 @@ class VectorField(Plottable2D):
     color : str
         Color of the vector arrows.
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -546,11 +585,11 @@ class VectorField(Plottable2D):
         y_data: ArrayLike,
         u_data: ArrayLike,
         v_data: ArrayLike,
-        arrow_width: float | Literal["default"] = "default",
-        arrow_head_size: float | Literal["default"] = "default",
+        arrow_width: float | Inherit = INHERIT,
+        arrow_head_size: float | Inherit = INHERIT,
         scale: Optional[float] = None,
         make_angles_axes_independent: bool = False,
-        color: str | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
     ) -> None:
         """
         This class implements vector fields.
@@ -563,9 +602,11 @@ class VectorField(Plottable2D):
             Magnitudes in the x and y coordinates.
         arrow_width : float
             Width of the arrow shaft. Acts as a multiplier for the standard arrow width.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         arrow_head_size : float
             Size of the arrow head. Acts as a multiplier for the standard arrow head size.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         scale : float
             Scaling of the arrow lengths. If ``None``, the arrows will be automatically scaled to look nice. Use 1 for no scaling.
@@ -580,6 +621,12 @@ class VectorField(Plottable2D):
         color : str
             Color of the vector arrows.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._x_data = np.asarray(x_data)
         self._y_data = np.asarray(y_data)
@@ -600,11 +647,11 @@ class VectorField(Plottable2D):
         y_axis_range: tuple[float, float],
         number_of_arrows_x: int = 10,
         number_of_arrows_y: int = 10,
-        arrow_width: float | Literal["default"] = "default",
-        arrow_head_size: float | Literal["default"] = "default",
+        arrow_width: float | Inherit = INHERIT,
+        arrow_head_size: float | Inherit = INHERIT,
         scale: Optional[float] = None,
         make_angles_axes_independent: bool = False,
-        color: str | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
     ) -> Self:
         """
         Creates a :class:`~graphinglib.data_plotting_2d.VectorField` from a function.
@@ -619,9 +666,11 @@ class VectorField(Plottable2D):
             Number of arrows to plot in the x and y direction. Defaults to 10.
         arrow_width : float
             Width of the arrow shaft. Acts as a multiplier for the standard arrow width.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         arrow_head_size : float
             Size of the arrow head. Acts as a multiplier for the standard arrow head size.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         scale : float
             Scaling of the arrow lengths. If ``None``, the arrows will be automatically scaled to look nice. Use 1 for no scaling.
@@ -636,6 +685,12 @@ class VectorField(Plottable2D):
         color : str
             Color of the vector arrows.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -754,7 +809,7 @@ class VectorField(Plottable2D):
             "scale": 1 / self._scale if self._scale is not None else None,
             "scale_units": "xy",
         }
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
         axes.quiver(
             self._x_data,
             self._y_data,
@@ -780,13 +835,15 @@ class Contour(Plottable2D):
     levels : int | ArrayLike
         If `levels` is an integer, it defines the number of levels to use in the contour.
         If `levels` is an array, it defines the value of each contour level.
+        Typical range is ``5`` to ``20`` when given as an integer.
         Default depends on the ``figure_style`` configuration.
     color_map : str or Colormap
-        The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Can either be specified as a
+        The color map to use for the :class:`~graphinglib.data_plotting_2d.Contour`. Can either be specified as a
         string (named colormap from Matplotlib) or a Colormap object.
+        Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
         Default depends on the ``figure_style`` configuration.
     color_map_range: tuple[float, float], optional
-        The data range that the color map will cover.
+        The data range covered by the color map, given as ``(minimum, maximum)``.
     show_color_bar : bool
         Whether or not to display the color bar next to the plot.
         Default depends on the ``figure_style`` configuration.
@@ -795,35 +852,37 @@ class Contour(Plottable2D):
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the filled contour.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
     line_widths : float | ArrayLike
         If the contour is not filled, the width of the contour lines. If an array is provided, it defines the line width
         for each contour level.
+        Typical range is ``0.5`` to ``3`` points.
         Default depends on the ``figure_style`` configuration.
     """
 
     _z_data: ArrayLike
     _x_mesh: ArrayLike
     _y_mesh: ArrayLike
-    _levels: int | Literal["default"] = "default"
-    _color_map: str | Colormap | Literal["default"] = "default"
-    _show_color_bar: bool | Literal["default"] = "default"
-    _filled: bool | Literal["default"] = "default"
-    _alpha: float | Literal["default"] = "default"
-    _line_widths: float | ArrayLike | Literal["default"] = "default"
+    _levels: int | Inherit = INHERIT
+    _color_map: str | Colormap | Inherit = INHERIT
+    _show_color_bar: bool | Inherit = INHERIT
+    _filled: bool | Inherit = INHERIT
+    _alpha: float | Inherit = INHERIT
+    _line_widths: float | ArrayLike | Inherit = INHERIT
 
     def __init__(
         self,
         z_data: ArrayLike,
         x_mesh: Optional[ArrayLike] = None,
         y_mesh: Optional[ArrayLike] = None,
-        levels: int | ArrayLike | Literal["default"] = "default",
-        color_map: str | Colormap | Literal["default"] = "default",
+        levels: int | ArrayLike | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
-        show_color_bar: bool | Literal["default"] = "default",
-        filled: bool | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
-        line_widths: float | ArrayLike | Literal["default"] = "default",
+        show_color_bar: bool | Inherit = INHERIT,
+        filled: bool | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
+        line_widths: float | ArrayLike | Inherit = INHERIT,
     ) -> None:
         """
         This class implements contour plots.
@@ -838,13 +897,15 @@ class Contour(Plottable2D):
         levels : int | ArrayLike
             If `levels` is an integer, it defines the number of levels to use in the contour.
             If `levels` is an array, it defines the value of each contour level.
+            Typical range is ``5`` to ``20`` when given as an integer.
             Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
-            The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Can either be specified as a
+            The color map to use for the :class:`~graphinglib.data_plotting_2d.Contour`. Can either be specified as a
             string (named colormap from Matplotlib) or a Colormap object.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Default depends on the ``figure_style`` configuration.
@@ -853,10 +914,12 @@ class Contour(Plottable2D):
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the filled contour.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         line_widths : float | ArrayLike
             If the contour is not filled, the width of the contour lines. If an array is provided, it defines the line
             width for each contour level.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         """
         self.z_data = z_data
@@ -878,13 +941,13 @@ class Contour(Plottable2D):
         func: Callable[[ArrayLike, ArrayLike], ArrayLike],
         x_axis_range: tuple[float, float],
         y_axis_range: tuple[float, float],
-        levels: int | ArrayLike | Literal["default"] = "default",
-        color_map: str | Colormap | Literal["default"] = "default",
+        levels: int | ArrayLike | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
-        show_color_bar: bool | Literal["default"] = "default",
-        filled: bool | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
-        line_widths: float | ArrayLike | Literal["default"] = "default",
+        show_color_bar: bool | Inherit = INHERIT,
+        filled: bool | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
+        line_widths: float | ArrayLike | Inherit = INHERIT,
         number_of_points: tuple[int, int] = (500, 500),
     ) -> Self:
         """
@@ -899,13 +962,15 @@ class Contour(Plottable2D):
         levels : int | ArrayLike
             If `levels` is an integer, it defines the number of levels to use in the contour.
             If `levels` is an array, it defines the value of each contour level.
+            Typical range is ``5`` to ``20`` when given as an integer.
             Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
-            The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Can either be specified as a
+            The color map to use for the :class:`~graphinglib.data_plotting_2d.Contour`. Can either be specified as a
             string (named colormap from Matplotlib) or a Colormap object.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Default depends on the ``figure_style`` configuration.
@@ -914,10 +979,12 @@ class Contour(Plottable2D):
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the filled contour.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         line_widths : float | ArrayLike
             If the contour is not filled, the width of the contour lines. If an array is provided, it defines the line
             width for each contour level.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         number_of_points : tuple[int, int]
             Number of points in the x and y coordinates.
@@ -969,11 +1036,11 @@ class Contour(Plottable2D):
         self._z_data = np.asarray(z_data)
 
     @property
-    def levels(self) -> int | ArrayLike | Literal["default"]:
+    def levels(self) -> int | ArrayLike | Inherit:
         return self._levels
 
     @levels.setter
-    def levels(self, levels: int | ArrayLike | Literal["default"]) -> None:
+    def levels(self, levels: int | ArrayLike | Inherit) -> None:
         self._levels = levels
 
     @property
@@ -1053,6 +1120,7 @@ class Contour(Plottable2D):
             color bar (vertical if the color bar is plotted on the "left" or "right",
             horizontal otherwise). If None, the color bar is plotted on the right
             side of the ``Figure``.
+            Values are ``"left"``, ``"right"``, ``"top"``, and ``"bottom"``.
         **color_bar_params:
             Additional keyword arguments are passed to ``plt.colorbar`` call.
         """
@@ -1086,7 +1154,7 @@ class Contour(Plottable2D):
             params["vmax"] = max(self._color_map_range)
 
         params = {
-            k: v for k, v in params.items() if not isinstance(v, str) or v != "default"
+            k: v for k, v in params.items() if not isinstance(v, str) or v != INHERIT
         }
         if self._filled:
             cont = axes.contourf(
@@ -1123,16 +1191,27 @@ class Stream(Plottable2D):
     density : float or tuple[float, float]
         Density of stream lines. Can be specified independently for the x and y coordinates
         by specifying a density tuple instead. Defaults to 1.
+        Typical range is ``0.5`` to ``3``.
     line_width : float
         Width of the stream lines. Default depends on the ``figure_style`` configuration.
+        Typical range is ``0.5`` to ``3`` points.
     color : str or ArrayLike
         Color of the stream lines. If an array of intensities is provided, the values are mapped to the specified color map.
         Default depends on the ``figure_style`` configuration.
     color_map : str or Colormap
         Color map of the stream lines, to be used in combination with the color parameter to specify intensity.
+        Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
         Default depends on the ``figure_style`` configuration.
     arrow_size : float
         Arrow size multiplier. Default depends on the ``figure_style`` configuration.
+        Typical range is ``0.5`` to ``3``.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+    intensity values, which are mapped through ``color_map``.
     """
 
     def __init__(
@@ -1142,10 +1221,10 @@ class Stream(Plottable2D):
         u_data: ArrayLike,
         v_data: ArrayLike,
         density: float | tuple[float, float] = 1,
-        line_width: float | Literal["default"] = "default",
-        color: str | ArrayLike | Literal["default"] = "default",
-        color_map: str | Colormap | Literal["default"] = "default",
-        arrow_size: float | Literal["default"] = "default",
+        line_width: float | Inherit = INHERIT,
+        color: str | ArrayLike | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
+        arrow_size: float | Inherit = INHERIT,
     ) -> None:
         """
         This class implements stream plots.
@@ -1159,16 +1238,27 @@ class Stream(Plottable2D):
         density : float or tuple[float, float]
             Density of stream lines. Can be specified independently for the x and y coordinates
             by specifying a density tuple instead. Defaults to 1.
+            Typical range is ``0.5`` to ``3``.
         line_width : float
             Width of the stream lines. Default depends on the ``figure_style`` configuration.
+            Typical range is ``0.5`` to ``3`` points.
         color : str or ArrayLike
             Color of the stream lines. If an array of intensities is provided, the values are mapped to the specified color map.
             Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
             Color map of the stream lines, to be used in combination with the color parameter to specify intensity.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         arrow_size : float
             Arrow size multiplier. Default depends on the ``figure_style`` configuration.
+            Typical range is ``0.5`` to ``3``.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+        intensity values, which are mapped through ``color_map``.
         """
         self._x_data = np.asarray(x_data)
         self._y_data = np.asarray(y_data)
@@ -1189,10 +1279,10 @@ class Stream(Plottable2D):
         number_of_points_x: int = 30,
         number_of_points_y: int = 30,
         density: float | tuple[float, float] = 1,
-        line_width: float | Literal["default"] = "default",
-        color: str | Literal["default"] = "default",
-        color_map: str | Colormap | Literal["default"] = "default",
-        arrow_size: float | Literal["default"] = "default",
+        line_width: float | Inherit = INHERIT,
+        color: str | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
+        arrow_size: float | Inherit = INHERIT,
     ) -> Self:
         """
         Creates a :class:`~graphinglib.data_plotting_2d.Stream` from a function.
@@ -1209,14 +1299,25 @@ class Stream(Plottable2D):
         density : float or tuple[float, float]
             Density of stream lines. Can be specified independently for the x and y coordinates
             by specifying a density tuple instead. Defaults to 1.
+            Typical range is ``0.5`` to ``3``.
         line_width : float
             Width of the stream lines. Default depends on the ``figure_style`` configuration.
+            Typical range is ``0.5`` to ``3`` points.
         color : str
             Color of the stream lines. Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
             Color map of the stream lines. Default depends on the ``figure_style`` configuration.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
         arrow_size : float
             Arrow size multiplier. Default depends on the ``figure_style`` configuration.
+            Typical range is ``0.5`` to ``3``.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+        intensity values, which are mapped through ``color_map``.
 
         Returns
         -------
@@ -1244,8 +1345,8 @@ class Stream(Plottable2D):
             "cmap": self._color_map,
             "arrowsize": self._arrow_size,
         }
-        params = {k: v for k, v in params.items() if v != "default"}
-        if isinstance(self._color, str) and self._color == "default":
+        params = {k: v for k, v in params.items() if v != INHERIT}
+        if is_inherit(self._color):
             pass
         else:
             params["color"] = self._color

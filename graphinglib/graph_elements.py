@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from .inherit import INHERIT, Inherit
+
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Literal, Optional, Protocol, runtime_checkable
@@ -110,14 +112,24 @@ class Hlines(Plottable):
     line_widths : list[float]
         Line widths to use for the lines. One width for every line or a width
         per line can be specified.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     line_styles : list[str]
         Line styles to use for the lines. One style for every line or a style
         per line can be specified.
+        Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+        ``"dotted"``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the lines.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -126,18 +138,18 @@ class Hlines(Plottable):
         x_min: Optional[ArrayLike] = None,
         x_max: Optional[ArrayLike] = None,
         label: Optional[str] = None,
-        colors: list[str] | str = "default",
-        line_widths: list[float] | float = "default",
-        line_styles: list[str] | str = "default",
-        alpha: float | Literal["default"] = "default",
+        colors: list[str] | str | Inherit = INHERIT,
+        line_widths: list[float] | float | Inherit = INHERIT,
+        line_styles: list[str] | str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> None:
         self._in_init = True
         self._y = None
         self._x_min = None
         self._x_max = None
-        self._colors = "default"
-        self._line_widths = "default"
-        self._line_styles = "default"
+        self._colors = INHERIT
+        self._line_widths = INHERIT
+        self._line_styles = INHERIT
         self.y = y
         self.x_min = x_min
         self.x_max = x_max
@@ -272,7 +284,7 @@ class Hlines(Plottable):
             self._validate_state()
 
     @property
-    def alpha(self) -> float | Literal["default"]:
+    def alpha(self) -> float | Inherit:
         return self._alpha
 
     def copy(self) -> Self:
@@ -294,7 +306,7 @@ class Hlines(Plottable):
                     "linewidths": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 axes.hlines(
                     self._y,
                     self._x_min,
@@ -310,7 +322,7 @@ class Hlines(Plottable):
                     "linewidth": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 for i in range(len(self._y)):
                     axes.axhline(
                         self._y[i],
@@ -333,7 +345,7 @@ class Hlines(Plottable):
                     "linewidths": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 axes.hlines(
                     self._y,
                     self._x_min,
@@ -349,7 +361,7 @@ class Hlines(Plottable):
                     "linewidth": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 axes.axhline(self._y, zorder=z_order, **params)
                 params.pop("linewidth")
             if isinstance(self._y, (int, float)):
@@ -384,14 +396,24 @@ class Vlines(Plottable):
     line_widths : list[float]
         Line widths to use for the lines. One width for every line or a width
         per line can be specified.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     line_styles : list[str]
         Line styles to use for the lines. One style for every line or a style
         per line can be specified.
+        Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+        ``"dotted"``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the lines.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -400,18 +422,18 @@ class Vlines(Plottable):
         y_min: Optional[ArrayLike] = None,
         y_max: Optional[ArrayLike] = None,
         label: Optional[str] = None,
-        colors: list[str] | str = "default",
-        line_widths: list[float] | float = "default",
-        line_styles: list[str] | str = "default",
-        alpha: float | Literal["default"] = "default",
+        colors: list[str] | str | Inherit = INHERIT,
+        line_widths: list[float] | float | Inherit = INHERIT,
+        line_styles: list[str] | str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> None:
         self._in_init = True
         self._x = None
         self._y_min = None
         self._y_max = None
-        self._colors = "default"
-        self._line_styles = "default"
-        self._line_widths = "default"
+        self._colors = INHERIT
+        self._line_styles = INHERIT
+        self._line_widths = INHERIT
         self.x = x
         self.y_min = y_min
         self.y_max = y_max
@@ -537,11 +559,11 @@ class Vlines(Plottable):
             self._validate_state()
 
     @property
-    def alpha(self) -> float | Literal["default"]:
+    def alpha(self) -> float | Inherit:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, alpha: float | Literal["default"]) -> None:
+    def alpha(self, alpha: float | Inherit) -> None:
         self._alpha = alpha
 
     def copy(self) -> Self:
@@ -563,7 +585,7 @@ class Vlines(Plottable):
                     "linewidths": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 axes.vlines(
                     self._x,
                     self._y_min,
@@ -579,7 +601,7 @@ class Vlines(Plottable):
                     "linewidth": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 for i in range(len(self._x)):
                     axes.axvline(
                         self._x[i],
@@ -602,7 +624,7 @@ class Vlines(Plottable):
                     "linewidths": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 axes.vlines(
                     self._x,
                     self._y_min,
@@ -618,7 +640,7 @@ class Vlines(Plottable):
                     "linewidth": self._line_widths,
                     "alpha": self._alpha,
                 }
-                params = {k: v for k, v in params.items() if v != "default"}
+                params = {k: v for k, v in params.items() if v != INHERIT}
                 axes.axvline(self._x, zorder=z_order, **params)
                 params.pop("linewidth")
             if isinstance(self._x, (int, float)):
@@ -652,18 +674,24 @@ class Point(Plottable):
         Default depends on the ``figure_style`` configuration.
     marker_size : float
         Size of the marker.
+        Typical range is ``10`` to ``100``.
         Default depends on the ``figure_style`` configuration.
     marker_style : str
         Style of the marker.
+        Values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``, ``"p"``,
+        ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, and ``"_"``.
         Default depends on the ``figure_style`` configuration.
     edge_width : float
         Edge width of the marker.
+        Typical range is ``0`` to ``3``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the point.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
     font_size : float
         Font size for the text attached to the marker.
+        Typical range is ``8`` to ``20``.
         Default depends on the ``figure_style`` configuration.
     text_color : str
         Color of the text attached to the marker.
@@ -671,7 +699,15 @@ class Point(Plottable):
     h_align, v_align : str
         Horizontal and vertical alignment of the text attached
         to the :class:`~graphinglib.graph_elements.Point`.
+        Horizontal alignment values include ``"left"``, ``"center"``, and ``"right"``. Vertical alignment values
+        include ``"bottom"``, ``"baseline"``, ``"center"``, ``"center_baseline"``, and ``"top"``.
         Defaults to bottom left.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -679,14 +715,14 @@ class Point(Plottable):
         x: float,
         y: float,
         label: Optional[str] = None,
-        face_color: Optional[str] = "default",
-        edge_color: Optional[str] = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        edge_width: float | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
+        face_color: Optional[str] | Inherit = INHERIT,
+        edge_color: Optional[str] | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        edge_width: float | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         font_size: int | Literal["same as figure"] = "same as figure",
-        text_color: str = "default",
+        text_color: str | Inherit = INHERIT,
         h_align: str = "left",
         v_align: str = "bottom",
     ) -> None:
@@ -710,18 +746,24 @@ class Point(Plottable):
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the marker.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the marker.
+            Values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``, ``"p"``,
+            ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, and ``"_"``.
             Default depends on the ``figure_style`` configuration.
         edge_width : float
             Edge width of the marker.
+            Typical range is ``0`` to ``3``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the point.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         font_size : float
             Font size for the text attached to the marker.
+            Typical range is ``8`` to ``20``.
             Default depends on the ``figure_style`` configuration.
         text_color : str
             Color of the text attached to the marker.
@@ -729,7 +771,15 @@ class Point(Plottable):
         h_align, v_align : str
             Horizontal and vertical alignment of the text attached
             to the :class:`~graphinglib.graph_elements.Point`.
+            Horizontal alignment values include ``"left"``, ``"center"``, and ``"right"``. Vertical alignment values
+            include ``"bottom"``, ``"baseline"``, ``"center"``, ``"center_baseline"``, and ``"top"``.
             Defaults to bottom left.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self.x = x
         self.y = y
@@ -796,11 +846,11 @@ class Point(Plottable):
         self._edge_color = edge_color
 
     @property
-    def marker_size(self) -> float | Literal["default"]:
+    def marker_size(self) -> float | Inherit:
         return self._marker_size
 
     @marker_size.setter
-    def marker_size(self, marker_size: float | Literal["default"]) -> None:
+    def marker_size(self, marker_size: float | Inherit) -> None:
         self._marker_size = marker_size
 
     @property
@@ -812,19 +862,19 @@ class Point(Plottable):
         self._marker_style = marker_style
 
     @property
-    def edge_width(self) -> float | Literal["default"]:
+    def edge_width(self) -> float | Inherit:
         return self._edge_width
 
     @edge_width.setter
-    def edge_width(self, edge_width: float | Literal["default"]) -> None:
+    def edge_width(self, edge_width: float | Inherit) -> None:
         self._edge_width = edge_width
 
     @property
-    def alpha(self) -> float | Literal["default"]:
+    def alpha(self) -> float | Inherit:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, alpha: float | Literal["default"]) -> None:
+    def alpha(self, alpha: float | Inherit) -> None:
         self._alpha = alpha
 
     @property
@@ -913,7 +963,7 @@ class Point(Plottable):
             "linewidths": self._edge_width,
             "alpha": self._alpha,
         }
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
         axes.scatter(
             self._x,
             self._y,
@@ -934,7 +984,7 @@ class Point(Plottable):
             "horizontalalignment": self._h_align,
             "verticalalignment": self._v_align,
         }
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
         axes.annotate(
             point_label,
             (self._x, self._y),
@@ -967,7 +1017,7 @@ class Point(Plottable):
                 "horizontalalignment": self._h_align,
                 "verticalalignment": self._v_align,
             }
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             axes.annotate(
                 point_label,
                 (self._x, self._y),
@@ -996,12 +1046,16 @@ class Text(Plottable):
         Default depends on the ``figure_style`` configuration.
     font_size : float
         Font size of the text.
+        Typical range is ``8`` to ``20``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the text.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
     h_align, v_align : str
         Horizontal and vertical alignment of the text.
+        Horizontal alignment values include ``"left"``, ``"center"``, and ``"right"``. Vertical alignment values
+        include ``"bottom"``, ``"baseline"``, ``"center"``, ``"center_baseline"``, and ``"top"``.
         Default depends on the ``figure_style`` configuration.
     rotation : float
         Rotation angle of the text in degrees.
@@ -1012,20 +1066,27 @@ class Text(Plottable):
         Default is ``None`` (no highlight).
     highlight_alpha : float, optional
         Opacity of the highlight box.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Defaults to 1.0.
     highlight_padding : float, optional
         Padding around the text for the highlight box. A value of 0 means no padding.
         Defaults to 0.1.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     _x: float
     _y: float
     _text: str
-    _color: str = "default"
+    _color: str | Inherit = INHERIT
     _font_size: float | Literal["same as figure"] = "same as figure"
-    _alpha: float | Literal["default"] = "default"
-    _h_align: str = "default"
-    _v_align: str = "default"
+    _alpha: float | Inherit = INHERIT
+    _h_align: str | Inherit = INHERIT
+    _v_align: str | Inherit = INHERIT
     _rotation: float = 0.0
     _highlight_color: Optional[str] = None
     _highlight_alpha: float = 1.0
@@ -1037,11 +1098,11 @@ class Text(Plottable):
         x: float,
         y: float,
         text: str,
-        color: str = "default",
+        color: str | Inherit = INHERIT,
         font_size: float | Literal["same as figure"] = "same as figure",
-        alpha: float | Literal["default"] = "default",
-        h_align: str = "default",
-        v_align: str = "default",
+        alpha: float | Inherit = INHERIT,
+        h_align: str | Inherit = INHERIT,
+        v_align: str | Inherit = INHERIT,
         rotation: float = 0.0,
         highlight_color: Optional[str] = None,
         highlight_alpha: float = 1.0,
@@ -1065,12 +1126,16 @@ class Text(Plottable):
             Default depends on the ``figure_style`` configuration.
         font_size : float
             Font size of the text.
+            Typical range is ``8`` to ``20``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the text.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         h_align, v_align : str
             Horizontal and vertical alignment of the text.
+            Horizontal alignment values include ``"left"``, ``"center"``, and ``"right"``. Vertical alignment values
+            include ``"bottom"``, ``"baseline"``, ``"center"``, ``"center_baseline"``, and ``"top"``.
             Default depends on the ``figure_style`` configuration.
         rotation : float
             Rotation angle of the text in degrees.
@@ -1081,10 +1146,17 @@ class Text(Plottable):
             Default is ``None`` (no highlight).
         highlight_alpha : float, optional
             Opacity of the highlight box.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Defaults to 1.0.
         highlight_padding : float, optional
             Padding around the text for the highlight box. A value of 0 means no padding.
             Defaults to 0.1.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._x = x
         self._y = y
@@ -1141,11 +1213,11 @@ class Text(Plottable):
         self._font_size = font_size
 
     @property
-    def alpha(self) -> float | Literal["default"]:
+    def alpha(self) -> float | Inherit:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, alpha: float | Literal["default"]) -> None:
+    def alpha(self, alpha: float | Inherit) -> None:
         self._alpha = alpha
 
     @property
@@ -1228,16 +1300,20 @@ class Text(Plottable):
         points_to: tuple[float, float]
             Coordinates at which to point.
         width : float, optional
-            Arrow width.
+            Arrow width, in points.
+            Typical range is ``0.5`` to ``3``.
         shrink : float, optional
             Fraction of the total length of the arrow to shrink from both ends.
-            A value of 0.5 means the arrow is no longer visible.
+            Range is ``0`` to ``0.5``. A value of ``0.5`` means the arrow is no longer visible.
         head_width : float, optional
-            Width of the head of the arrow.
+            Width of the head of the arrow, in points.
+            Typical range is ``3`` to ``10``.
         head_length : float, optional
-            Length of the head of the arrow.
+            Length of the head of the arrow, in points.
+            Typical range is ``3`` to ``10``.
         alpha : float, optional
             Opacity of the arrow.
+            Range is ``0`` (transparent) to ``1`` (opaque).
         """
         self._arrow_pointing_to = points_to
         self._arrow_properties = {}
@@ -1280,7 +1356,7 @@ class Text(Plottable):
             }
             params["bbox"] = bbox_dict
 
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
         target.text(
             self._x,
             self._y,
@@ -1296,8 +1372,8 @@ class Text(Plottable):
                 "horizontalalignment": self._h_align,
                 "verticalalignment": self._v_align,
             }
-            params = {k: v for k, v in params.items() if v != "default"}
-            if self._color != "default":
+            params = {k: v for k, v in params.items() if v != INHERIT}
+            if self._color != INHERIT:
                 self._arrow_properties["color"] = self._color
                 params["arrowprops"] = self._arrow_properties
             target.annotate(
@@ -1351,6 +1427,7 @@ class Table(Plottable):
         Default depends on the ``figure_style`` configuration.
     edge_width : float or str, optional
         Width of the table's edges.
+        Typical range is ``0.5`` to ``3``.
         Default depends on the ``figure_style`` configuration.
     edge_color : str, optional
         Color of the table's edges.
@@ -1362,28 +1439,34 @@ class Table(Plottable):
         Horizontal and vertical scaling factors to apply to the table.
         Defaults to ``(1, 1.5)``.
     location : str
-        Position of the table inside the axes. Must be one of the following:
-        {'best', 'bottom', 'bottom left', 'bottom right', 'center', 'center left', 'center right',
-        'left', 'lower center', 'lower left', 'lower right', 'right', 'top', 'top left', 'top right',
-        'upper center', 'upper left', 'upper right'}
+        Position of the table inside the axes. Values are ``"best"``, ``"bottom"``, ``"bottom left"``,
+        ``"bottom right"``, ``"center"``, ``"center left"``, ``"center right"``, ``"left"``,
+        ``"lower center"``, ``"lower left"``, ``"lower right"``, ``"right"``, ``"top"``, ``"top left"``,
+        ``"top right"``, ``"upper center"``, ``"upper left"``, and ``"upper right"``.
         Defaults to ``"best"``.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
         self,
         cell_text: list[str],
-        cell_colors: ArrayLike | str = "default",
-        cell_align: str = "default",
+        cell_colors: ArrayLike | str | Inherit = INHERIT,
+        cell_align: str | Inherit = INHERIT,
         col_labels: Optional[list[str]] = None,
         col_widths: Optional[list[float]] = None,
-        col_align: str = "default",
-        col_colors: ArrayLike | str = "default",
+        col_align: str | Inherit = INHERIT,
+        col_colors: ArrayLike | str | Inherit = INHERIT,
         row_labels: Optional[list[str]] = None,
-        row_align: str = "default",
-        row_colors: ArrayLike | str = "default",
-        edge_width: float | Literal["default"] = "default",
-        edge_color: str = "default",
-        text_color: str = "default",
+        row_align: str | Inherit = INHERIT,
+        row_colors: ArrayLike | str | Inherit = INHERIT,
+        edge_width: float | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        text_color: str | Inherit = INHERIT,
         scaling: tuple[float, float] = (1.0, 1.5),
         location: str = "best",
     ) -> None:
@@ -1427,6 +1510,7 @@ class Table(Plottable):
             Default depends on the ``figure_style`` configuration.
         edge_width : float or str, optional
             Width of the table's edges.
+            Typical range is ``0.5`` to ``3``.
             Default depends on the ``figure_style`` configuration.
         edge_color : str, optional
             Color of the table's edges.
@@ -1438,11 +1522,17 @@ class Table(Plottable):
             Horizontal and vertical scaling factors to apply to the table.
             Defaults to ``(1, 1.5)``.
         location : str
-            Position of the table inside the axes. Must be one of the following:
-            {'best', 'bottom', 'bottom left', 'bottom right', 'center', 'center left', 'center right',
-            'left', 'lower center', 'lower left', 'lower right', 'right', 'top', 'top left', 'top right',
-            'upper center', 'upper left', 'upper right'}
+            Position of the table inside the axes. Values are ``"best"``, ``"bottom"``, ``"bottom left"``,
+            ``"bottom right"``, ``"center"``, ``"center left"``, ``"center right"``, ``"left"``,
+            ``"lower center"``, ``"lower left"``, ``"lower right"``, ``"right"``, ``"top"``, ``"top left"``,
+            ``"top right"``, ``"upper center"``, ``"upper left"``, and ``"upper right"``.
             Defaults to ``"best"``.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._cell_text = cell_text
         self._cell_colors = cell_colors
@@ -1602,7 +1692,7 @@ class Table(Plottable):
             "colLoc": self._col_align,
             "rowLoc": self._row_align,
         }
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
 
         # Set colors to correct shape if they are strings
         if isinstance(self._cell_colors, str):

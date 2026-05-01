@@ -1,3 +1,5 @@
+from .inherit import INHERIT, Inherit
+
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Literal, Optional
@@ -34,13 +36,16 @@ class Arrow(Plottable):
         Default depends on the ``figure_style`` configuration.
     width : float, optional
         Arrow line width.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     head_size : float, optional
         Scales the size of the arrow head.
+        Typical range is ``0.5`` to ``3``.
         Default depends on the ``figure_style`` configuration.
-    style : ``Literal["->", "-|>", "-[", "]->", "simple", "fancy", "wedge", "default"]``, optional
+    style : ``Literal["->", "-|>", "-[", "]->", "simple", "fancy", "wedge"] | Inherit``, optional
         The style of the arrow. For a visual explanation of all available styles, see the gallery
         `Arrow Styles <https://graphinglib.org/latest/examples/arrow_styles.html>`_ example.
+        Values are ``"->"``, ``"-|>"``, ``"-["``, ``"]->"``, ``"simple"``, ``"fancy"``, and ``"wedge"``.
         Default depends on the ``figure_style`` configuration.
 
         .. warning::
@@ -48,27 +53,33 @@ class Arrow(Plottable):
             ``two_sided`` parameter to explicitly define whether the arrow is single or double-sided.
     shrink : float
         Fraction of the total length of the arrow to shrink from both ends.
-        A value of 0.5 means the arrow is no longer visible.
+        Range is ``0`` to ``0.5``. A value of ``0.5`` means the arrow is no longer visible.
         Defaults to 0.
     alpha : float
         Opacity of the arrow.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
     two_sided : bool
         If ``True``, an arrow is shown at both head and tail. Defaults to ``False``.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
         self,
         pointA: tuple[float, float],
         pointB: tuple[float, float],
-        color: str = "default",
-        width: float | Literal["default"] = "default",
-        head_size: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        width: float | Inherit = INHERIT,
+        head_size: float | Inherit = INHERIT,
         shrink: float = 0,
-        style: Literal[
-            "->", "-|>", "-[", "]->", "simple", "fancy", "wedge", "default"
-        ] = "default",
-        alpha: float | Literal["default"] = "default",
+        style: Literal["->", "-|>", "-[", "]->", "simple", "fancy", "wedge"]
+        | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         two_sided: bool = False,
     ):
         """This class implements an arrow object.
@@ -78,17 +89,21 @@ class Arrow(Plottable):
         pointA : tuple[float, float]
             Point A of the arrow. If the arrow is single-sided, refers to the tail.
         pointB : tuple[float, float]
-            Point B of the arrow. If the arrow is douple-sided, refers to the head.
+            Point B of the arrow. If the arrow is double-sided, refers to the head.
         color : str
             Color of the arrow. Default depends on the ``figure_style`` configuration.
         width : float, optional
-            Arrow line width. Default depends on the ``figure_style`` configuration.
+            Arrow line width.
+            Typical range is ``0.5`` to ``4``.
+            Default depends on the ``figure_style`` configuration.
         head_size : float, optional
             Scales the size of the arrow head.
+            Typical range is ``0.5`` to ``3``.
             Default depends on the ``figure_style`` configuration.
-        style : ``Literal["->", "-|>", "-[", "]->", "simple", "fancy", "wedge", "default"]``, optional
+        style : ``Literal["->", "-|>", "-[", "]->", "simple", "fancy", "wedge"] | Inherit``, optional
             The style of the arrow. For a visual explanation of all available styles, see the gallery
             `Arrow Styles <https://graphinglib.org/latest/examples/arrow_styles.html>`_ example.
+            Values are ``"->"``, ``"-|>"``, ``"-["``, ``"]->"``, ``"simple"``, ``"fancy"``, and ``"wedge"``.
             Default depends on the ``figure_style`` configuration.
 
             .. warning::
@@ -96,10 +111,20 @@ class Arrow(Plottable):
                 ``two_sided`` parameter to explicitly define whether the arrow is single or double-sided.
         shrink : float
             Fraction of the total length of the arrow to shrink from both ends.
-            A value of 0.5 means the arrow is no longer visible.
+            Range is ``0`` to ``0.5``. A value of ``0.5`` means the arrow is no longer visible.
             Defaults to 0.
+        alpha : float
+            Opacity of the arrow.
+            Range is ``0`` (transparent) to ``1`` (opaque).
+            Default depends on the ``figure_style`` configuration.
         two_sided : bool
             If ``True``, the arrow is double-sided. Defaults to ``False``.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._pointA = pointA
         self._pointB = pointB
@@ -173,11 +198,11 @@ class Arrow(Plottable):
             "simple",
             "fancy",
             "wedge",
-            "default",
+            INHERIT,
         ]:
             raise ValueError(
                 "Invalid head style. Valid options are: '->', '-|>', '-[', ']->', 'simple', 'fancy', "
-                "'wedge', 'default'."
+                "'wedge', or INHERIT."
             )
         self._style = value
 
@@ -234,7 +259,7 @@ class Arrow(Plottable):
         else:
             style = self._style
 
-        if self._head_size != "default":
+        if self._head_size != INHERIT:
             head_length, head_width = self._head_size * 0.4, self._head_size * 0.2
 
             # Set specific arrow properties
@@ -262,7 +287,7 @@ class Arrow(Plottable):
             "linewidth": self._width,
             "alpha": self._alpha,
         }
-        props = {k: v for k, v in props.items() if v != "default"}
+        props = {k: v for k, v in props.items() if v != INHERIT}
         if self._shrink != 0:
             shrinkPointA, shrinkPointB = self._shrink_points()
             axes.annotate(
@@ -297,35 +322,44 @@ class Line(Plottable):
         Default depends on the ``figure_style`` configuration.
     width : float, optional
         Line width.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     capped_line : bool
         If ``True``, the line is capped on both ends.
         Defaults to ``False``.
     cap_width : float
         Width of the caps.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the line.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     _pointA: tuple[float, float]
     _pointB: tuple[float, float]
-    _color: str = "default"
-    _width: float | Literal["default"] = "default"
+    _color: str | Inherit = INHERIT
+    _width: float | Inherit = INHERIT
     _capped_line: bool = False
-    _cap_width: float | Literal["default"] = "default"
-    _alpha: float | Literal["default"] = "default"
+    _cap_width: float | Inherit = INHERIT
+    _alpha: float | Inherit = INHERIT
 
     def __init__(
         self,
         pointA: tuple[float, float],
         pointB: tuple[float, float],
-        color: str = "default",
-        width: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        width: float | Inherit = INHERIT,
         capped_line: bool = False,
-        cap_width: float | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
+        cap_width: float | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ):
         self._pointA = pointA
         self._pointB = pointB
@@ -408,7 +442,7 @@ class Line(Plottable):
             "linewidth": self._width,
             "alpha": self._alpha,
         }
-        props = {k: v for k, v in props.items() if v != "default"}
+        props = {k: v for k, v in props.items() if v != INHERIT}
         axes.annotate(
             "",
             self._pointA,
@@ -428,29 +462,42 @@ class Polygon(Plottable):
     fill : bool, optional
         Whether the polygon should be filled or not.
         Default depends on the ``figure_style`` configuration.
-    color : str, optional
-        The color of the polygon (both the line and the fill).
+    edge_color : str, optional
+        The color of the polygon's edge.
+        Default depends on the ``figure_style`` configuration.
+    fill_color : str, optional
+        The color of the polygon's fill.
         Default depends on the ``figure_style`` configuration.
     line_width : float, optional
         The width of the line.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     line_style : str, optional
         The style of the line.
+        Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+        ``"dotted"``.
         Default depends on the ``figure_style`` configuration.
     fill_alpha : float, optional
         The alpha value of the fill.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
         self,
         vertices: list[tuple[float, float]],
-        fill: bool = "default",
-        edge_color: str = "default",
-        fill_color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        fill_alpha: float | Literal["default"] = "default",
+        fill: bool | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        fill_color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        fill_alpha: float | Inherit = INHERIT,
     ):
         self._fill = fill
         self._edge_color = edge_color
@@ -860,7 +907,7 @@ class Polygon(Plottable):
             }
             if self._fill_color is not None:
                 params["facecolor"] = self._fill_color
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             polygon_fill = MPLPolygon(self.vertices, **params)
             axes.add_patch(polygon_fill)
         # Create a polygon patch for the edge
@@ -872,7 +919,7 @@ class Polygon(Plottable):
                 "edgecolor": self._edge_color,
                 "zorder": z_order,
             }
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             polygon_edge = MPLPolygon(self.vertices, **params)
             axes.add_patch(polygon_edge)
 
@@ -900,16 +947,26 @@ class Circle(Polygon):
         Default depends on the ``figure_style`` configuration.
     line_width : float, optional
         The width of the line.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     line_style : str, optional
         The style of the line.
+        Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+        ``"dotted"``.
         Default depends on the ``figure_style`` configuration.
     fill_alpha : float, optional
         The alpha value of the fill.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
     number_of_points : int, optional
         The number of points to use to approximate the circle.
         Default is 100 (covers approximately 99.9% of perfect circle area).
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -917,12 +974,12 @@ class Circle(Polygon):
         x_center: float,
         y_center: float,
         radius: float,
-        fill: bool = "default",
-        fill_color: str = "default",
-        edge_color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        fill_alpha: float | Literal["default"] = "default",
+        fill: bool | Inherit = INHERIT,
+        fill_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        fill_alpha: float | Inherit = INHERIT,
         number_of_points: int = 100,
     ):
         self.number_of_points = number_of_points
@@ -1020,16 +1077,26 @@ class Ellipse(Polygon):
         Default depends on the ``figure_style`` configuration.
     line_width : float, optional
         The width of the line.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     line_style : str, optional
         The style of the line.
+        Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+        ``"dotted"``.
         Default depends on the ``figure_style`` configuration.
     fill_alpha : float, optional
         The alpha value of the fill.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
     number_of_points : int, optional
         The number of points to use to approximate the ellipse.
         Default is 100 (covers approximately 99.9% of perfect ellipse area).
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -1039,12 +1106,12 @@ class Ellipse(Polygon):
         x_radius: float,
         y_radius: float,
         angle: float = 0,
-        fill: bool = "default",
-        fill_color: str = "default",
-        edge_color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        fill_alpha: float | Literal["default"] = "default",
+        fill: bool | Inherit = INHERIT,
+        fill_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        fill_alpha: float | Inherit = INHERIT,
         number_of_points: int = 100,
     ):
         self.number_of_points = number_of_points
@@ -1199,13 +1266,23 @@ class Rectangle(Polygon):
         Default depends on the ``figure_style`` configuration.
     line_width : float, optional
         The width of the line.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     line_style : str, optional
         The style of the line.
+        Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+        ``"dotted"``.
         Default depends on the ``figure_style`` configuration.
     fill_alpha : float, optional
         The alpha value of the fill.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -1214,12 +1291,12 @@ class Rectangle(Polygon):
         y_bottom_left: float,
         width: float,
         height: float,
-        fill: bool = "default",
-        fill_color: str = "default",
-        edge_color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        fill_alpha: float | Literal["default"] = "default",
+        fill: bool | Inherit = INHERIT,
+        fill_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        fill_alpha: float | Inherit = INHERIT,
     ):
         self._fill = fill
         self._fill_color = fill_color
@@ -1325,12 +1402,12 @@ class Rectangle(Polygon):
         y: float,
         width: float,
         height: float,
-        fill: bool = "default",
-        fill_color: str = "default",
-        edge_color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        fill_alpha: float | Literal["default"] = "default",
+        fill: bool | Inherit = INHERIT,
+        fill_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        fill_alpha: float | Inherit = INHERIT,
     ) -> Self:
         """Creates a :class:`~graphinglib.shapes.Rectangle` from its center point, width and height.
 
@@ -1355,13 +1432,23 @@ class Rectangle(Polygon):
             Default depends on the ``figure_style`` configuration.
         line_width : float, optional
             The width of the line.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str, optional
             The style of the line.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         fill_alpha : float, optional
             The alpha value of the fill.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         return cls(
             x - width / 2,

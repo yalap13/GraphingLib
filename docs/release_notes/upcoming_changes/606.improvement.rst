@@ -1,3 +1,0 @@
-Renamed `Heatmap` `alpha_value`
--------------------------------
-Renamed the `alpha_value` parameter in the `Heatmap` class to `alpha` to maintain consistency with other `Plottable` classes.

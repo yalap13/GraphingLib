@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from .inherit import INHERIT, Inherit, is_inherit
+
 from copy import deepcopy
 from dataclasses import dataclass
 from types import NoneType
-from typing import Callable, Literal, Optional, Protocol, runtime_checkable
+from typing import Callable, Optional, Protocol, runtime_checkable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -119,13 +121,23 @@ class Curve(Plottable1D, MathematicalObject):
         Default depends on the ``figure_style`` configuration.
     line_width : float
         Width of the curve.
+        Typical range is ``0.5`` to ``4``.
         Default depends on the ``figure_style`` configuration.
     line_style : str
         Style of the curve.
+        Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+        ``"dotted"``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the curve.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -133,10 +145,10 @@ class Curve(Plottable1D, MathematicalObject):
         x_data: ArrayLike,
         y_data: ArrayLike,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> None:
         self.handle = None
         self._x_data = np.asarray(x_data)
@@ -173,10 +185,10 @@ class Curve(Plottable1D, MathematicalObject):
         x_min: float,
         x_max: float,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         number_of_points: int = 500,
     ) -> Self:
         """
@@ -195,16 +207,26 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the curve.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str
             Style of the curve.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the curve.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         number_of_points : int
             Number of points to be used to plot the curve (resolution).
             Defaults to 500.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -263,11 +285,11 @@ class Curve(Plottable1D, MathematicalObject):
         self._color = color
 
     @property
-    def line_width(self) -> float | Literal["default"]:
+    def line_width(self) -> float | Inherit:
         return self._line_width
 
     @line_width.setter
-    def line_width(self, line_width: float | Literal["default"]) -> None:
+    def line_width(self, line_width: float | Inherit) -> None:
         self._line_width = line_width
 
     @property
@@ -279,11 +301,11 @@ class Curve(Plottable1D, MathematicalObject):
         self._line_style = line_style
 
     @property
-    def alpha(self) -> float | Literal["default"]:
+    def alpha(self) -> float | Inherit:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, alpha: float | Literal["default"]) -> None:
+    def alpha(self, alpha: float | Inherit) -> None:
         self._alpha = alpha
 
     @property
@@ -303,29 +325,27 @@ class Curve(Plottable1D, MathematicalObject):
         self._errorbars_color = errorbars_color
 
     @property
-    def errorbars_line_width(self) -> float | Literal["default"]:
+    def errorbars_line_width(self) -> float | Inherit:
         return self._errorbars_line_width
 
     @errorbars_line_width.setter
-    def errorbars_line_width(
-        self, errorbars_line_width: float | Literal["default"]
-    ) -> None:
+    def errorbars_line_width(self, errorbars_line_width: float | Inherit) -> None:
         self._errorbars_line_width = errorbars_line_width
 
     @property
-    def cap_thickness(self) -> float | Literal["default"]:
+    def cap_thickness(self) -> float | Inherit:
         return self._cap_thickness
 
     @cap_thickness.setter
-    def cap_thickness(self, cap_thickness: float | Literal["default"]) -> None:
+    def cap_thickness(self, cap_thickness: float | Inherit) -> None:
         self._cap_thickness = cap_thickness
 
     @property
-    def cap_width(self) -> float | Literal["default"]:
+    def cap_width(self) -> float | Inherit:
         return self._cap_width
 
     @cap_width.setter
-    def cap_width(self, cap_width: float | Literal["default"]) -> None:
+    def cap_width(self, cap_width: float | Inherit) -> None:
         self._cap_width = cap_width
 
     @property
@@ -361,13 +381,11 @@ class Curve(Plottable1D, MathematicalObject):
         self._error_curves_line_style = error_curves_line_style
 
     @property
-    def error_curves_line_width(self) -> float | Literal["default"]:
+    def error_curves_line_width(self) -> float | Inherit:
         return self._error_curves_line_width
 
     @error_curves_line_width.setter
-    def error_curves_line_width(
-        self, error_curves_line_width: float | Literal["default"]
-    ) -> None:
+    def error_curves_line_width(self, error_curves_line_width: float | Inherit) -> None:
         self._error_curves_line_width = error_curves_line_width
 
     @property
@@ -525,10 +543,10 @@ class Curve(Plottable1D, MathematicalObject):
         x1: float,
         x2: float,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -545,17 +563,27 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the slice.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str
             Style of the slice.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the slice.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the curve (with all its parameters) will be returned with the slicing applied. Any
             other parameters passed to this method will also be applied to the copied curve. If ``False``, a new curve
             will be created with the slicing applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -571,13 +599,13 @@ class Curve(Plottable1D, MathematicalObject):
             copy._y_data = y_data
             if label is not None:
                 copy._label = label
-            if color != "default":
+            if color != INHERIT:
                 copy._color = color
-            if line_width != "default":
+            if line_width != INHERIT:
                 copy._line_width = line_width
-            if line_style != "default":
+            if line_style != INHERIT:
                 copy._line_style = line_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -588,10 +616,10 @@ class Curve(Plottable1D, MathematicalObject):
         y1: float,
         y2: float,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -608,17 +636,27 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the slice.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str
             Style of the slice.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the slice.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the curve (with all its parameters) will be returned with the slicing applied. Any
             other parameters passed to this method will also be applied to the copied curve. If ``False``, a new curve
             will be created with the slicing applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -634,13 +672,13 @@ class Curve(Plottable1D, MathematicalObject):
             copy._y_data = y_data
             if label is not None:
                 copy._label = label
-            if color != "default":
+            if color != INHERIT:
                 copy._color = color
-            if line_width != "default":
+            if line_width != INHERIT:
                 copy._line_width = line_width
-            if line_style != "default":
+            if line_style != INHERIT:
                 copy._line_style = line_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -650,10 +688,10 @@ class Curve(Plottable1D, MathematicalObject):
         self,
         x_error: Optional[ArrayLike] = None,
         y_error: Optional[ArrayLike] = None,
-        cap_width: float | Literal["default"] = "default",
-        errorbars_color: str = "default",
-        errorbars_line_width: float | Literal["default"] = "default",
-        cap_thickness: float | Literal["default"] = "default",
+        cap_width: float | Inherit = INHERIT,
+        errorbars_color: str | Inherit = INHERIT,
+        errorbars_line_width: float | Inherit = INHERIT,
+        cap_thickness: float | Inherit = INHERIT,
     ) -> None:
         """
         Adds errorbars to the :class:`~graphinglib.data_plotting_1d.Curve`.
@@ -662,18 +700,29 @@ class Curve(Plottable1D, MathematicalObject):
         ----------
         x_error, y_error : ArrayLike, optional
             Arrays of x and y errors. Use one or both.
+            Values must be non-negative.
         cap_width : float
             Width of the errorbar caps.
+            Typical range is ``0`` to ``10`` points.
             Default depends on the ``figure_style`` configuration.
         errorbars_color : str
             Color of the errorbars.
+            ``"same as curve"`` uses the curve color.
             Default depends on the ``figure_style`` configuration.
         errorbars_line_width : float
             Width of the errorbars.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         cap_thickness : float
             Thickness of the errorbar caps.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._show_errorbars = True
 
@@ -691,10 +740,10 @@ class Curve(Plottable1D, MathematicalObject):
     def add_error_curves(
         self,
         y_error: Optional[ArrayLike] = None,
-        error_curves_color: str = "default",
-        error_curves_line_style: str = "default",
-        error_curves_line_width: float | Literal["default"] = "default",
-        error_curves_fill_between: bool | Literal["default"] = "default",
+        error_curves_color: str | Inherit = INHERIT,
+        error_curves_line_style: str | Inherit = INHERIT,
+        error_curves_line_width: float | Inherit = INHERIT,
+        error_curves_fill_between: bool | Inherit = INHERIT,
     ) -> None:
         """
         Adds error curves to the :class:`~graphinglib.data_plotting_1d.Curve`.
@@ -705,16 +754,26 @@ class Curve(Plottable1D, MathematicalObject):
             Array of y errors.
         error_curves_color : str
             Color of the error curves.
+            ``"same as curve"`` uses the curve color.
             Default depends on the ``figure_style`` configuration.
         error_curves_line_style : str
             Line style of the error curves.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         error_curves_line_width : float
             Line width of the error curves.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         error_curves_fill_between : bool
             Whether or not to fill the area between the two error curves.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._show_error_curves = True
 
@@ -760,12 +819,12 @@ class Curve(Plottable1D, MathematicalObject):
         x: float,
         interpolation_method: str = "linear",
         label: Optional[str] = None,
-        face_color: str = "default",
-        edge_color: str = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        line_width: float | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
+        face_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> Point:
         """
         Creates a point on the curve at a given x value.
@@ -790,16 +849,28 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the point.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the point.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the point edge.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the point.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -862,12 +933,12 @@ class Curve(Plottable1D, MathematicalObject):
         y: float,
         interpolation_method: str = "linear",
         label: str | None = None,
-        face_color: str = "default",
-        edge_color: str = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        line_width: float | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
+        face_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> list[Point]:
         """
         Gets the points on the curve at a given y value. Can return multiple Point objects if the curve crosses the y
@@ -893,16 +964,28 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the point.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the point.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the point edge.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the point.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -929,10 +1012,10 @@ class Curve(Plottable1D, MathematicalObject):
     def create_derivative_curve(
         self,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -947,17 +1030,27 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the new curve.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str
             Style of the new curve.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the new curve.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the curve (with all its parameters) will be returned with the derivative applied. Any
             other parameters passed to this method will also be applied to the copied curve. If ``False``, a new curve
             will be created with the derivative applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -970,13 +1063,13 @@ class Curve(Plottable1D, MathematicalObject):
             copy._y_data = y_data
             if label is not None:
                 copy._label = label
-            if color != "default":
+            if color != INHERIT:
                 copy._color = color
-            if line_width != "default":
+            if line_width != INHERIT:
                 copy._line_width = line_width
-            if line_style != "default":
+            if line_style != INHERIT:
                 copy._line_style = line_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -986,10 +1079,10 @@ class Curve(Plottable1D, MathematicalObject):
         self,
         initial_value: float = 0,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -1007,17 +1100,27 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the new curve.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str
             Style of the new curve.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the new curve.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the curve (with all its parameters) will be returned with the integral applied. Any
             other parameters passed to this method will also be applied to the copied curve. If ``False``, a new curve
             will be created with the integral applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -1032,13 +1135,13 @@ class Curve(Plottable1D, MathematicalObject):
             copy._y_data = y_data
             if label is not None:
                 copy._label = label
-            if color != "default":
+            if color != INHERIT:
                 copy._color = color
-            if line_width != "default":
+            if line_width != INHERIT:
                 copy._line_width = line_width
-            if line_style != "default":
+            if line_style != INHERIT:
                 copy._line_style = line_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -1050,10 +1153,10 @@ class Curve(Plottable1D, MathematicalObject):
         self,
         x: float,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -1070,17 +1173,27 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the new curve.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str
             Style of the new curve.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the new curve.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the curve (with all its parameters) will be returned with the tangent applied. Any
             other parameters passed to this method will also be applied to the copied curve. If ``False``, a new curve
             will be created with the tangent applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -1096,13 +1209,13 @@ class Curve(Plottable1D, MathematicalObject):
             copy._y_data = y_data
             if label is not None:
                 copy._label = label
-            if color != "default":
+            if color != INHERIT:
                 copy._color = color
-            if line_width != "default":
+            if line_width != INHERIT:
                 copy._line_width = line_width
-            if line_style != "default":
+            if line_style != INHERIT:
                 copy._line_style = line_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -1115,10 +1228,10 @@ class Curve(Plottable1D, MathematicalObject):
         self,
         x: float,
         label: Optional[str] = None,
-        color: str = "default",
-        line_width: float | Literal["default"] = "default",
-        line_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -1135,17 +1248,27 @@ class Curve(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the new curve.
+            Typical range is ``0.5`` to ``4``.
             Default depends on the ``figure_style`` configuration.
         line_style : str
             Style of the new curve.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the new curve.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the curve (with all its parameters) will be returned with the normal applied. Any
             other parameters passed to this method will also be applied to the copied curve. If ``False``, a new curve
             will be created with the normal applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -1161,13 +1284,13 @@ class Curve(Plottable1D, MathematicalObject):
             copy._y_data = y_data
             if label is not None:
                 copy._label = label
-            if color != "default":
+            if color != INHERIT:
                 copy._color = color
-            if line_width != "default":
+            if line_width != INHERIT:
                 copy._line_width = line_width
-            if line_style != "default":
+            if line_style != INHERIT:
                 copy._line_style = line_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -1218,7 +1341,7 @@ class Curve(Plottable1D, MathematicalObject):
         x1: float,
         x2: float,
         fill_between: bool = False,
-        fill_color: str = "default",
+        fill_color: str | Inherit = INHERIT,
         other_curve: Optional[Self] = None,
     ) -> float:
         """
@@ -1234,10 +1357,17 @@ class Curve(Plottable1D, MathematicalObject):
             Defaults to ``False``.
         fill_color : str
             Color of the area between the curve and the x axis when ``fill_between`` is set to ``True``.
+            ``"same as curve"`` uses the curve color.
             Default depends on the ``figure_style`` configuration.
         other_curve : :class:`~graphinglib.data_plotting_1d.Curve`, optional
             If specified, the area between the two curves will be calculated instead of the area between the curve and
             the x axis.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -1341,12 +1471,12 @@ class Curve(Plottable1D, MathematicalObject):
         self,
         other: Self,
         labels: Optional[list[str] | str] = None,
-        face_colors: list[str] | str = "default",
-        edge_colors: list[str] | str = "default",
-        marker_sizes: list[float] | float | Literal["default"] = "default",
-        marker_styles: list[str] | str = "default",
-        edge_widths: list[float] | float | Literal["default"] = "default",
-        alphas: list[float] | float | Literal["default"] = "default",
+        face_colors: list[str] | str | Inherit = INHERIT,
+        edge_colors: list[str] | str | Inherit = INHERIT,
+        marker_sizes: list[float] | float | Inherit = INHERIT,
+        marker_styles: list[str] | str | Inherit = INHERIT,
+        edge_widths: list[float] | float | Inherit = INHERIT,
+        alphas: list[float] | float | Inherit = INHERIT,
     ) -> list[Point]:
         """
         Creates the intersection Points between two curves.
@@ -1373,19 +1503,31 @@ class Curve(Plottable1D, MathematicalObject):
         marker_sizes : list[float] or float
             Sizes of the intersection points.
             If a single float is passed, all intersection points will have the same size.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_styles : list[str] or str
             Styles of the intersection points.
             If a single string is passed, all intersection points will have the same style.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         edge_widths : list[float] or float
             Widths of the intersection points.
             If a single float is passed, all intersection points will have the same width.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         alphas : list[float] or float
             Opacities of the intersection points.
             If a single float is passed, all intersection points will have the same opacity.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -1483,7 +1625,7 @@ class Curve(Plottable1D, MathematicalObject):
                     ),
                 }
             )
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             self.handle = axes.errorbar(
                 self._x_data,
                 self._y_data,
@@ -1494,7 +1636,7 @@ class Curve(Plottable1D, MathematicalObject):
                 **params,
             )
         else:
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             self.handle = axes.errorbar(
                 self._x_data,
                 self._y_data,
@@ -1532,7 +1674,7 @@ class Curve(Plottable1D, MathematicalObject):
                 ),
             }
 
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
 
             axes.plot(
                 self._x_data,
@@ -1559,7 +1701,7 @@ class Curve(Plottable1D, MathematicalObject):
                 if self._fill_between_color != "same as curve"
                 else self.handle[0].get_color()
             )
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
             if self._fill_between_other_curve:
                 self_y_data = self._y_data
                 self_x_data = self._x_data
@@ -1611,25 +1753,39 @@ class Scatter(Plottable1D, MathematicalObject):
         map. If None, marker edges are transparent.
         Default depends on the ``figure_style`` configuration.
     color_map : str or Colormap
-        Color map of the stream lines, to be used in combination with the color parameter to specify intensity.
+        Color map used when ``face_color`` or ``edge_color`` is an array of intensity values.
+        Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
         Default depends on the ``figure_style`` configuration.
     color_map_range: tuple[float, float], optional
-        The data range that the color map will cover.
+        The data range covered by the color map, given as ``(minimum, maximum)``.
     show_color_bar : bool
         Whether or not to display the color bar next to the plot.
         Default depends on the ``figure_style`` configuration.
     marker_size : float
         Size of the points.
+        Typical range is ``10`` to ``100``.
         Default depends on the ``figure_style`` configuration.
     marker_edge_width: float
         Line width of the marker edges.
+        Typical range is ``0`` to ``3`` points.
         Default depends on the ``figure_style`` configuration.
     marker_style : str
         Style of the points.
+        Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+        ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+        ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the scatter plot.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+    intensity values, which are mapped through ``color_map``.
     """
 
     def __init__(
@@ -1637,15 +1793,15 @@ class Scatter(Plottable1D, MathematicalObject):
         x_data: ArrayLike,
         y_data: ArrayLike,
         label: Optional[str] = None,
-        face_color: str | ArrayLike | NoneType = "default",
-        edge_color: str | ArrayLike | NoneType = "default",
-        color_map: str | Colormap = "default",
+        face_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        edge_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
-        show_color_bar: bool | Literal["default"] = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_edge_width: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        show_color_bar: bool | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_edge_width: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> None:
         """
         This class implements a general scatter plot.
@@ -1665,25 +1821,39 @@ class Scatter(Plottable1D, MathematicalObject):
             color map. If None, marker edges are transparent.
             Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
-            Color map of the stream lines, to be used in combination with the color parameter to specify intensity.
+            Color map used when ``face_color`` or ``edge_color`` is an array of intensity values.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the points.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_edge_width: float
             Line width of the marker edges.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the points.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the scatter plot.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+        intensity values, which are mapped through ``color_map``.
         """
         self.handle = None
         self.errorbars_handle = None
@@ -1717,15 +1887,15 @@ class Scatter(Plottable1D, MathematicalObject):
         x_min: float,
         x_max: float,
         label: Optional[str] = None,
-        face_color: str | ArrayLike | NoneType = "default",
-        edge_color: str | ArrayLike | NoneType = "default",
-        color_map: str | Colormap = "default",
+        face_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        edge_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
-        show_color_bar: bool | Literal["default"] = "default",
-        marker_size: int | Literal["default"] = "default",
-        marker_edge_width: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        show_color_bar: bool | Inherit = INHERIT,
+        marker_size: int | Inherit = INHERIT,
+        marker_edge_width: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         number_of_points: int = 30,
     ) -> Self:
         """
@@ -1747,28 +1917,42 @@ class Scatter(Plottable1D, MathematicalObject):
             color map. If None, marker edges are transparent.
             Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
-            Color map of the stream lines, to be used in combination with the color parameter to specify intensity.
+            Color map used when ``face_color`` or ``edge_color`` is an array of intensity values.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Default depends on the ``figure_style`` configuration.
         marker_size : int
             Size of the points.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the points.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         marker_edge_width: float
             Line width of the marker edges.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the scatter plot.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         number_of_points : int
             Number of points to be plotted.
             Defaults to 30.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+        intensity values, which are mapped through ``color_map``.
 
         Returns
         -------
@@ -1872,11 +2056,11 @@ class Scatter(Plottable1D, MathematicalObject):
         self._show_color_bar = show_color_bar
 
     @property
-    def marker_size(self) -> float | Literal["default"]:
+    def marker_size(self) -> float | Inherit:
         return self._marker_size
 
     @marker_size.setter
-    def marker_size(self, marker_size: float | Literal["default"]) -> None:
+    def marker_size(self, marker_size: float | Inherit) -> None:
         self._marker_size = marker_size
 
     @property
@@ -1896,11 +2080,11 @@ class Scatter(Plottable1D, MathematicalObject):
         self._marker_style = marker_style
 
     @property
-    def alpha(self) -> float | Literal["default"]:
+    def alpha(self) -> float | Inherit:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, alpha: float | Literal["default"]) -> None:
+    def alpha(self, alpha: float | Inherit) -> None:
         self._alpha = alpha
 
     @property
@@ -2076,15 +2260,15 @@ class Scatter(Plottable1D, MathematicalObject):
         x_min: float,
         x_max: float,
         label: Optional[str] = None,
-        face_color: str | ArrayLike | NoneType = "default",
-        edge_color: str | ArrayLike | NoneType = "default",
-        color_map: str | Colormap = "default",
+        face_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        edge_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
-        show_color_bar: bool | Literal["default"] = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_edge_width: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        show_color_bar: bool | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_edge_width: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -2105,29 +2289,43 @@ class Scatter(Plottable1D, MathematicalObject):
             color map. If None, marker edges are transparent.
             Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
-            Color map of the stream lines, to be used in combination with the color parameter to specify intensity.
+            Color map used when ``face_color`` or ``edge_color`` is an array of intensity values.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the points.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_edge_width: float
             Line width of the marker edges.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the points.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacities of the points.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the scatter plot (with all its parameters) will be returned with the slice applied.
             Any other parameters passed to this method will also be applied to the copied scatter plot. If ``False``, a
             new scatter plot will be created with the slice applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+        intensity values, which are mapped through ``color_map``.
 
         Returns
         -------
@@ -2141,23 +2339,23 @@ class Scatter(Plottable1D, MathematicalObject):
             copy._y_data = self._y_data[mask]
             if label is not None:
                 copy._label = label
-            if face_color != "default":
+            if face_color != INHERIT:
                 copy._face_color = face_color
-            if edge_color != "default":
+            if edge_color != INHERIT:
                 copy._edge_color = edge_color
-            if color_map != "default":
+            if color_map != INHERIT:
                 copy._color_map = color_map
             if color_map_range:
                 copy._color_map_range = color_map_range
-            if show_color_bar != "default":
+            if show_color_bar != INHERIT:
                 copy._show_color_bar = show_color_bar
-            if marker_size != "default":
+            if marker_size != INHERIT:
                 copy._marker_size = marker_size
-            if marker_edge_width != "default":
+            if marker_edge_width != INHERIT:
                 copy._marker_edge_width = marker_edge_width
-            if marker_style != "default":
+            if marker_style != INHERIT:
                 copy._marker_style = marker_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -2181,15 +2379,15 @@ class Scatter(Plottable1D, MathematicalObject):
         y_min: float,
         y_max: float,
         label: Optional[str] = None,
-        face_color: str | ArrayLike | NoneType = "default",
-        edge_color: str | ArrayLike | NoneType = "default",
-        color_map: str | Colormap | Literal["default"] = "default",
+        face_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        edge_color: str | ArrayLike | NoneType | Inherit = INHERIT,
+        color_map: str | Colormap | Inherit = INHERIT,
         color_map_range: Optional[tuple[float, float]] = None,
-        show_color_bar: bool | Literal["default"] = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_edge_width: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        show_color_bar: bool | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_edge_width: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
         copy_first: bool = False,
     ) -> Self:
         """
@@ -2210,29 +2408,43 @@ class Scatter(Plottable1D, MathematicalObject):
             color map. If None, marker edges are transparent.
             Default depends on the ``figure_style`` configuration.
         color_map : str or Colormap
-            Color map of the stream lines, to be used in combination with the color parameter to specify intensity.
+            Color map used when ``face_color`` or ``edge_color`` is an array of intensity values.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
             Default depends on the ``figure_style`` configuration.
         color_map_range: tuple[float, float], optional
-            The data range that the color map will cover.
+            The data range covered by the color map, given as ``(minimum, maximum)``.
         show_color_bar : bool
             Whether or not to display the color bar next to the plot.
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the points.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_edge_width: float
             Line width of the marker edges.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the points.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacities of the points.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         copy_first : bool
             If ``True``, a copy of the scatter plot (with all its parameters) will be returned with the slice applied.
             Any other parameters passed to this method will also be applied to the copied scatter plot. If ``False``, a
             new scatter plot will be created with the slice applied and the parameters passed to this method.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``). They may also be arrays of
+        intensity values, which are mapped through ``color_map``.
 
         Returns
         -------
@@ -2246,23 +2458,23 @@ class Scatter(Plottable1D, MathematicalObject):
             copy._y_data = self._y_data[mask]
             if label is not None:
                 copy._label = label
-            if face_color != "default":
+            if face_color != INHERIT:
                 copy._face_color = face_color
-            if edge_color != "default":
+            if edge_color != INHERIT:
                 copy._edge_color = edge_color
-            if color_map != "default":
+            if color_map != INHERIT:
                 copy._color_map = color_map
             if color_map_range:
                 copy._color_map_range = color_map_range
-            if show_color_bar != "default":
+            if show_color_bar != INHERIT:
                 copy._show_color_bar = show_color_bar
-            if marker_size != "default":
+            if marker_size != INHERIT:
                 copy._marker_size = marker_size
-            if marker_edge_width != "default":
+            if marker_edge_width != INHERIT:
                 copy._marker_edge_width = marker_edge_width
-            if marker_style != "default":
+            if marker_style != INHERIT:
                 copy._marker_style = marker_style
-            if alpha != "default":
+            if alpha != INHERIT:
                 copy._alpha = alpha
             return copy
         else:
@@ -2285,10 +2497,10 @@ class Scatter(Plottable1D, MathematicalObject):
         self,
         x_error: Optional[ArrayLike] = None,
         y_error: Optional[ArrayLike] = None,
-        cap_width: float | Literal["default"] = "default",
-        errorbars_color: str = "default",
-        errorbars_line_width: float | Literal["default"] = "default",
-        cap_thickness: float | Literal["default"] = "default",
+        cap_width: float | Inherit = INHERIT,
+        errorbars_color: str | Inherit = INHERIT,
+        errorbars_line_width: float | Inherit = INHERIT,
+        cap_thickness: float | Inherit = INHERIT,
     ) -> None:
         """
         Adds errorbars to the scatter plot.
@@ -2297,18 +2509,29 @@ class Scatter(Plottable1D, MathematicalObject):
         ----------
         x_error, y_error : ArrayLike, optional
             Arrays of x and y errors. Use one or both.
+            Values must be non-negative.
         cap_width : float
             Width of the errorbar caps.
+            Typical range is ``0`` to ``10`` points.
             Default depends on the ``figure_style`` configuration.
         errorbars_color : str
             Color of the errorbars.
+            ``"same as scatter"`` uses the scatter marker color.
             Default depends on the ``figure_style`` configuration.
         errorbars_line_width : float
             Width of the errorbars.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         cap_thickness : float
             Thickness of the errorbar caps.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._show_errorbars = True
 
@@ -2342,6 +2565,7 @@ class Scatter(Plottable1D, MathematicalObject):
             color bar (vertical if the color bar is plotted on the "left" or "right",
             horizontal otherwise). If None, the color bar is plotted on the right
             side of the ``Figure``.
+            Values are ``"left"``, ``"right"``, ``"top"``, and ``"bottom"``.
         **color_bar_params:
             Additional keyword arguments are passed to ``plt.colorbar`` call.
         """
@@ -2385,12 +2609,12 @@ class Scatter(Plottable1D, MathematicalObject):
         x: float,
         interpolation_method: str = "linear",
         label: Optional[str] = None,
-        face_color: str = "default",
-        edge_color: str = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_edge_width: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        face_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_edge_width: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> Point:
         """
         Creates a Point on the curve at a given x value.
@@ -2415,16 +2639,28 @@ class Scatter(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the point.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_edge_width : float
             Width of the point edge.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the point.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the point.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -2488,12 +2724,12 @@ class Scatter(Plottable1D, MathematicalObject):
         y: float,
         interpolation_method: str = "linear",
         label: Optional[str] = None,
-        face_color: str = "default",
-        edge_color: str = "default",
-        marker_size: float | Literal["default"] = "default",
-        marker_edge_width: float | Literal["default"] = "default",
-        marker_style: str = "default",
-        alpha: float | Literal["default"] = "default",
+        face_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        marker_size: float | Inherit = INHERIT,
+        marker_edge_width: float | Inherit = INHERIT,
+        marker_style: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
     ) -> list[Point]:
         """
         Creates the Points on the curve at a given y value. Can return multiple Points if the curve crosses the y value
@@ -2519,16 +2755,28 @@ class Scatter(Plottable1D, MathematicalObject):
             Default depends on the ``figure_style`` configuration.
         marker_size : float
             Size of the point.
+            Typical range is ``10`` to ``100``.
             Default depends on the ``figure_style`` configuration.
         marker_edge_width : float
             Width of the point edge.
+            Typical range is ``0`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         marker_style : str
             Style of the point.
+            Common values include ``"."``, ``","``, ``"o"``, ``"v"``, ``"^"``, ``"<"``, ``">"``, ``"s"``,
+            ``"p"``, ``"*"``, ``"h"``, ``"H"``, ``"+"``, ``"x"``, ``"D"``, ``"d"``, ``"|"``, ``"_"``,
+            ``"P"``, ``"X"``, ``"None"``, ``" "``, and ``""``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the point.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -2606,7 +2854,7 @@ class Scatter(Plottable1D, MathematicalObject):
         if self._face_color is None:
             # Set to transparent
             mpl_face_color = "none"
-        elif isinstance(self._face_color, str) and self._face_color == "default":
+        elif is_inherit(self._face_color):
             # Use color cycle (figure uses a matplotlib style)
             mpl_face_color = None
         elif isinstance(self._face_color, str) and self._face_color == "color cycle":
@@ -2620,7 +2868,7 @@ class Scatter(Plottable1D, MathematicalObject):
         if self._edge_color is None:
             # Set to transparent
             mpl_edge_color = "none"
-        elif isinstance(self._edge_color, str) and self._edge_color == "default":
+        elif is_inherit(self._edge_color):
             # Use color cycle (figure uses a matplotlib style)
             mpl_edge_color = None
         elif isinstance(self._edge_color, str) and self._edge_color == "color cycle":
@@ -2668,7 +2916,7 @@ class Scatter(Plottable1D, MathematicalObject):
             "linewidth": self._marker_edge_width,
             "alpha": self._alpha,
         }
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
         params["facecolors"] = mpl_face_color
         params["edgecolors"] = mpl_edge_color
         self.handle = axes.scatter(
@@ -2684,9 +2932,7 @@ class Scatter(Plottable1D, MathematicalObject):
                 raise ValueError(
                     "Errorbars color cannot be None. Please set the errorbars color to a valid color."
                 )
-            elif isinstance(self._errorbars_color, str) and (
-                self._errorbars_color == "default"
-            ):
+            elif is_inherit(self._errorbars_color):
                 # Use color cycle
                 mpl_errorbars_color = None
             elif (
@@ -2716,9 +2962,7 @@ class Scatter(Plottable1D, MathematicalObject):
                 "capthick": self._cap_thickness,
                 "linestyle": "none",
             }
-            errorbar_params = {
-                k: v for k, v in errorbar_params.items() if v != "default"
-            }
+            errorbar_params = {k: v for k, v in errorbar_params.items() if v != INHERIT}
             errorbar_params["ecolor"] = mpl_errorbars_color
             self.errorbars_handle = axes.errorbar(
                 self._x_data,
@@ -2732,10 +2976,16 @@ class Scatter(Plottable1D, MathematicalObject):
         if (
             self._show_color_bar
             and self._face_color is not None
+            and not is_inherit(self._face_color)
             and not isinstance(self.face_color, str)
         ):
             # Create color bar from face color intensities
-            color_map = plt.get_cmap(self._color_map)
+            color_map_name = (
+                plt.rcParams["image.cmap"]
+                if is_inherit(self._color_map)
+                else self._color_map
+            )
+            color_map = plt.get_cmap(color_map_name)
 
             # Sets the data range that the color map on the color bar will cover.
             # Otherwise, it will be calculated from the array of intensities.
@@ -2753,10 +3003,16 @@ class Scatter(Plottable1D, MathematicalObject):
         if (
             self._show_color_bar
             and self._edge_color is not None
+            and not is_inherit(self._edge_color)
             and not isinstance(self.edge_color, str)
         ):
             # Create color bar from edge color intensities
-            color_map = plt.get_cmap(self._color_map)
+            color_map_name = (
+                plt.rcParams["image.cmap"]
+                if is_inherit(self._color_map)
+                else self._color_map
+            )
+            color_map = plt.get_cmap(color_map_name)
 
             # Sets the data range that the color map on the color bar will cover.
             # Otherwise, it will be calculated from the array of intensities.
@@ -2794,24 +3050,33 @@ class Histogram(Plottable1D):
         Edge color of the histogram.
         Default depends on the ``figure_style`` configuration.
     hist_type : str
-        Type of the histogram. Can be "bar", "barstacked", "step", "stepfilled".
+        Type of the histogram.
+        Values are ``"bar"``, ``"barstacked"``, ``"step"``, and ``"stepfilled"``.
         Default depends on the ``figure_style`` configuration.
     alpha : float
         Opacity of the histogram.
+        Range is ``0`` (transparent) to ``1`` (opaque).
         Default depends on the ``figure_style`` configuration.
     line_width : float
         Width of the histogram edge.
+        Typical range is ``0.5`` to ``3`` points.
         Default depends on the ``figure_style`` configuration.
     normalize : bool
         Whether or not to normalize the histogram.
         Default depends on the ``figure_style`` configuration.
-    show_pdf : str
-        Whether or not to show the probability density function.
-        Can be "normal" or "gaussian".
+    orientation: str
+        Whether to plot the histogram on x-axis or on y-axis.
+        Values are ``"vertical"`` and ``"horizontal"``.
         Default depends on the ``figure_style`` configuration.
     show_params : bool
         Whether or not to show the mean and standard deviation of the data.
         Default depends on the ``figure_style`` configuration.
+
+    Notes
+    -----
+    Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+    (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+    values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
     def __init__(
@@ -2819,14 +3084,14 @@ class Histogram(Plottable1D):
         data: ArrayLike,
         bins: int,
         label: Optional[str] = None,
-        face_color: str = "default",
-        edge_color: str = "default",
-        hist_type: str = "default",
-        alpha: float | Literal["default"] = "default",
-        line_width: float | Literal["default"] = "default",
-        normalize: bool | Literal["default"] = "default",
-        orientation: str = "default",
-        show_params: bool | Literal["default"] = "default",
+        face_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        hist_type: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
+        normalize: bool | Inherit = INHERIT,
+        orientation: str | Inherit = INHERIT,
+        show_params: bool | Inherit = INHERIT,
     ) -> None:
         """
         This class implements a general histogram.
@@ -2848,28 +3113,33 @@ class Histogram(Plottable1D):
             Edge color of the histogram.
             Default depends on the ``figure_style`` configuration.
         hist_type : str
-            Type of the histogram. Can be "bar", "barstacked", "step", "stepfilled".
+            Type of the histogram.
+            Values are ``"bar"``, ``"barstacked"``, ``"step"``, and ``"stepfilled"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the histogram.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the histogram edge.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         normalize : bool
             Whether or not to normalize the histogram.
             Default depends on the ``figure_style`` configuration.
         orientation: str
             Whether to plot the histogram on x-axis or on y-axis.
-            Can be "vertical" or "horizontal".
-            Default depends on the ``figure_style`` configuration.
-        show_pdf : str
-            Whether or not to show the probability density function.
-            Can be "normal" or "gaussian".
+            Values are ``"vertical"`` and ``"horizontal"``.
             Default depends on the ``figure_style`` configuration.
         show_params : bool
             Whether or not to show the mean and standard deviation of the data.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._bins = bins
         self._label = label
@@ -2897,14 +3167,14 @@ class Histogram(Plottable1D):
         fit: Fit,
         bins: int,
         label: Optional[str] = None,
-        face_color: str = "default",
-        edge_color: str = "default",
-        hist_type: str = "default",
-        alpha: int | Literal["default"] = "default",
-        line_width: int | Literal["default"] = "default",
-        normalize: bool | Literal["default"] = "default",
-        orientation: str = "default",
-        show_params: bool | Literal["default"] = "default",
+        face_color: str | Inherit = INHERIT,
+        edge_color: str | Inherit = INHERIT,
+        hist_type: str | Inherit = INHERIT,
+        alpha: int | Inherit = INHERIT,
+        line_width: int | Inherit = INHERIT,
+        normalize: bool | Inherit = INHERIT,
+        orientation: str | Inherit = INHERIT,
+        show_params: bool | Inherit = INHERIT,
     ) -> Self:
         """
         Calculates the residuals of a fit and plots them as a histogram.
@@ -2926,28 +3196,33 @@ class Histogram(Plottable1D):
             Edge color of the histogram.
             Default depends on the ``figure_style`` configuration.
         hist_type : str
-            Type of the histogram. Can be "bar", "barstacked", "step", "stepfilled".
+            Type of the histogram.
+            Values are ``"bar"``, ``"barstacked"``, ``"step"``, and ``"stepfilled"``.
             Default depends on the ``figure_style`` configuration.
         alpha : float
             Opacity of the histogram.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         line_width : float
             Width of the histogram edge.
+            Typical range is ``0.5`` to ``3`` points.
             Default depends on the ``figure_style`` configuration.
         normalize : bool
             Whether or not to normalize the histogram.
             Default depends on the ``figure_style`` configuration.
         orientation: str
             Whether to plot the histogram on x-axis or on y-axis.
-            Can be "vertical" or "horizontal".
-            Default depends on the ``figure_style`` configuration.
-        show_pdf : str
-            Whether or not to show the probability density function.
-            Can be "normal" or "gaussian".
+            Values are ``"vertical"`` and ``"horizontal"``.
             Default depends on the ``figure_style`` configuration.
         show_params : bool
             Whether or not to show the mean and standard deviation of the data.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
 
         Returns
         -------
@@ -3162,11 +3437,11 @@ class Histogram(Plottable1D):
     def add_pdf(
         self,
         type: str = "normal",
-        show_mean: bool | Literal["default"] = "default",
-        show_std: bool | Literal["default"] = "default",
-        curve_color: str | Literal["default"] = "default",
-        mean_color: str | Literal["default"] = "default",
-        std_color: str | Literal["default"] = "default",
+        show_mean: bool | Inherit = INHERIT,
+        show_std: bool | Inherit = INHERIT,
+        curve_color: str | Inherit = INHERIT,
+        mean_color: str | Inherit = INHERIT,
+        std_color: str | Inherit = INHERIT,
     ) -> None:
         """
         Shows the probability density function of the histogram.
@@ -3175,7 +3450,7 @@ class Histogram(Plottable1D):
         ----------
         type : str
             The type of probability density function to be shown.
-            Currently only "normal" is supported.
+            Currently only ``"normal"`` is supported.
             Defaults to "normal".
         show_mean : bool
             Whether or not to show the mean of the data.
@@ -3192,6 +3467,12 @@ class Histogram(Plottable1D):
         std_color : str
             Color of the standard deviation lines.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         if type != "normal":
             raise ValueError("Currently, only 'normal' distribution is supported.")
@@ -3237,17 +3518,17 @@ class Histogram(Plottable1D):
         params = {
             "facecolor": (
                 to_rgba(self._face_color, self._alpha)
-                if self._face_color != "default" and self._alpha != "default"
-                else "default"
+                if self._face_color != INHERIT and self._alpha != INHERIT
+                else INHERIT
             ),
             "edgecolor": (
                 to_rgba(self._edge_color, 1)
-                if self._edge_color != "default"
+                if self._edge_color != INHERIT
                 else self._edge_color
             ),
             "linewidth": self._line_width,
         }
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
         self.handle = Polygon(
             np.array([[0, 2, 2, 3, 3, 1, 1, 0, 0], [0, 0, 1, 1, 2, 2, 3, 3, 0]]).T,
             **params,
@@ -3255,12 +3536,12 @@ class Histogram(Plottable1D):
         params = {
             "facecolor": (
                 to_rgba(self._face_color, self._alpha)
-                if self._face_color != "default" and self._alpha != "default"
-                else "default"
+                if self._face_color != INHERIT and self._alpha != INHERIT
+                else INHERIT
             ),
             "edgecolor": (
                 to_rgba(self._edge_color, 1)
-                if self._edge_color != "default"
+                if self._edge_color != INHERIT
                 else self._edge_color
             ),
             "histtype": self._hist_type,
@@ -3268,7 +3549,7 @@ class Histogram(Plottable1D):
             "density": self._normalize,
             "orientation": self._orientation,
         }
-        params = {k: v for k, v in params.items() if v != "default"}
+        params = {k: v for k, v in params.items() if v != INHERIT}
         axes.hist(
             self._data,
             bins=self._bins,
@@ -3288,7 +3569,7 @@ class Histogram(Plottable1D):
             params = {
                 "color": self._pdf_curve_color,
             }
-            params = {k: v for k, v in params.items() if v != "default"}
+            params = {k: v for k, v in params.items() if v != INHERIT}
 
             # Plots pdf on the y-axis if "orientation" is "horizontal".
             if self._orientation != "vertical":
@@ -3311,7 +3592,7 @@ class Histogram(Plottable1D):
             curve_std_y = normal(self._mean + self._standard_deviation)
             if self._pdf_show_std:
                 params = {}
-                if self._pdf_std_color != "default":
+                if self._pdf_std_color != INHERIT:
                     params["colors"] = [self._pdf_std_color, self._pdf_std_color]
 
                 # Plots std on the y-axis if "orientation" is "horizontal".
@@ -3343,7 +3624,7 @@ class Histogram(Plottable1D):
 
             if self._pdf_show_mean:
                 params = {}
-                if self._pdf_mean_color != "default":
+                if self._pdf_mean_color != INHERIT:
                     params["colors"] = [self._pdf_mean_color]
 
                 # Plots std on the y-axis if "orientation" is "horizontal".

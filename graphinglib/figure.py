@@ -1,3 +1,5 @@
+from .inherit import INHERIT, Inherit, is_inherit
+
 from copy import deepcopy
 from shutil import which
 from typing import Literal, Optional
@@ -38,6 +40,7 @@ class Figure:
         The limits for the x-axis and y-axis.
     size : tuple[float, float]
         Overall size of the figure.
+        Figure size is in inches; typical width is ``4`` to ``12`` and typical height is ``3`` to ``8``.
         Default depends on the ``figure_style`` configuration.
     title: str, optional
         The title of the figure.
@@ -51,8 +54,8 @@ class Figure:
         Whether or not to show the axes. Useful for adding tables or text to
         the subfigure. Defaults to ``False``.
     aspect_ratio : float, str
-        The aspect ratio of the axis scaling. Can be either "equal", "auto" or a float.
-        Defaults to "auto".
+        The aspect ratio of the axis scaling. Values are ``"equal"``, ``"auto"``, or a positive float.
+        Defaults to ``"auto"``.
     figure_style : str
         The figure style to use for the figure.
     """
@@ -61,15 +64,15 @@ class Figure:
         self,
         x_label: Optional[str] = None,
         y_label: Optional[str] = None,
-        size: tuple[float, float] | Literal["default"] = "default",
+        size: tuple[float, float] | Inherit = INHERIT,
         title: Optional[str] = None,
         x_lim: Optional[tuple[float, float]] = None,
         y_lim: Optional[tuple[float, float]] = None,
-        log_scale_x: bool | Literal["default"] = "default",
-        log_scale_y: bool | Literal["default"] = "default",
+        log_scale_x: bool | Inherit = INHERIT,
+        log_scale_y: bool | Inherit = INHERIT,
         remove_axes: bool = False,
         aspect_ratio: float | str = "auto",
-        figure_style: str = "default",
+        figure_style: str | Inherit = INHERIT,
     ) -> None:
         """
         This class implements a general figure object.
@@ -83,6 +86,7 @@ class Figure:
             The limits for the x-axis and y-axis.
         size : tuple[float, float]
             Overall size of the figure.
+            Figure size is in inches; typical width is ``4`` to ``12`` and typical height is ``3`` to ``8``.
             Default depends on the ``figure_style`` configuration.
         title: str, optional
             The title of the figure.
@@ -93,8 +97,8 @@ class Figure:
             Whether or not to show the axes. Useful for adding tables or text to
             the subfigure. Defaults to ``False``.
         aspect_ratio : float, str
-            The aspect ratio of the axis scaling. Can be either "equal", "auto" or a float.
-            Defaults to "auto".
+            The aspect ratio of the axis scaling. Values are ``"equal"``, ``"auto"``, or a positive float.
+            Defaults to ``"auto"``.
         figure_style : str
             The figure style to use for the figure.
             Default can be set using ``gl.set_default_style()``.
@@ -122,11 +126,11 @@ class Figure:
         self.aspect_ratio = aspect_ratio
 
     @property
-    def figure_style(self) -> str:
+    def figure_style(self) -> str | Inherit:
         return self._figure_style
 
     @figure_style.setter
-    def figure_style(self, value: str):
+    def figure_style(self, value: str | Inherit):
         self._figure_style = value
 
     @property
@@ -284,7 +288,7 @@ class Figure:
                 self._fill_in_rc_params()
             figure_params_to_reset = self._fill_in_missing_params(self)
         else:
-            if self._figure_style == "default":
+            if self._figure_style == INHERIT:
                 self._figure_style = get_default_style()
             try:
                 file_loader = FileLoader(self._figure_style)
@@ -534,7 +538,7 @@ class Figure:
         while tries < 2:
             try:
                 for property, value in vars(element).items():
-                    if (type(value) is str) and (value == "default"):
+                    if is_inherit(value):
                         params_to_reset.append(property)
                         default_value = self._default_params[object_type][property]
                         setattr(element, property, default_value)
@@ -561,7 +565,7 @@ class Figure:
             setattr(
                 element,
                 param,
-                "default",
+                INHERIT,
             )
 
     def set_rc_params(
@@ -631,6 +635,7 @@ class Figure:
             Defaults to ``None``.
         axes_line_width : float
             The width of the axes lines.
+            Typical range is ``0.5`` to ``3``.
             Defaults to ``None``.
         color_cycle : list[str]
             A list of colors to use for the color cycle.
@@ -652,9 +657,12 @@ class Figure:
             Defaults to ``None``.
         font_size : float
             The font size to use.
+            Typical range is ``8`` to ``20``.
             Defaults to ``None``.
         font_weight : str
             The font weight to use.
+            Values include ``"normal"``, ``"bold"``, ``"light"``, ``"ultralight"``, ``"heavy"``, and
+            ``"black"``.
             Defaults to ``None``.
         text_color : str
             The color of the text.
@@ -662,6 +670,12 @@ class Figure:
         use_latex : bool
             Whether or not to use latex.
             Defaults to ``None``.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         if color_cycle is not None:
             color_cycle = plt.cycler(color=color_cycle)
@@ -771,10 +785,10 @@ class Figure:
         visible_y: bool = True,
         which_x: Literal["both", "major", "minor"] = "both",
         which_y: Literal["both", "major", "minor"] = "both",
-        color: str = "default",
-        alpha: float | Literal["default"] = "default",
-        line_style: str = "default",
-        line_width: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
     ) -> None:
         """
         Sets the grid parameters for the figure.
@@ -796,13 +810,23 @@ class Figure:
             Default depends on the ``figure_style`` configuration.
         alpha : float, optional
             Sets the alpha value for the grid lines.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         line_style : str, optional
             Sets the line style of the grid lines.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         line_width : float, optional
             Sets the line width of the grid lines.
+            Typical range is ``0.5`` to ``3``.
             Default depends on the ``figure_style`` configuration.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._show_grid = True
         self._grid_vis_x = visible_x
@@ -815,7 +839,7 @@ class Figure:
             "grid.linestyle": line_style,
             "grid.linewidth": line_width,
         }
-        rc_params_dict = {k: v for k, v in rc_params_dict.items() if v != "default"}
+        rc_params_dict = {k: v for k, v in rc_params_dict.items() if v != INHERIT}
         self.set_rc_params(rc_params_dict)
 
     def create_twin_axis(
@@ -945,14 +969,14 @@ class TwinAxis:
         fig_axes: plt.Axes,
         is_matplotlib_style: bool = False,
         default_params: dict = None,
-        figure_style: str = "default",
+        figure_style: str | Inherit = INHERIT,
     ):
         """
         Prepares the :class:`~graphinglib.figure.TwinAxis` to be displayed.
         """
         self._default_params = default_params
         self._figure_style = (
-            figure_style if figure_style != "default" else get_default_style()
+            figure_style if figure_style != INHERIT else get_default_style()
         )
         if self._is_y:
             self._axes = fig_axes.twinx()
@@ -1107,6 +1131,12 @@ class TwinAxis:
         tick_color : str
             The color of the axis ticks.
             Defaults to ``None``.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         self._axes_label_color = axes_label_color
         self._tick_color = tick_color
@@ -1128,7 +1158,7 @@ class TwinAxis:
         while tries < 2:
             try:
                 for property, value in vars(element).items():
-                    if (type(value) is str) and (value == "default"):
+                    if is_inherit(value):
                         params_to_reset.append(property)
                         default_value = self._default_params[object_type][property]
                         if default_value == "same as curve":
@@ -1164,5 +1194,5 @@ class TwinAxis:
             setattr(
                 element,
                 param,
-                "default",
+                INHERIT,
             )

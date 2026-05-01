@@ -1,3 +1,0 @@
-Added `Plottable.copy_with` method
-----------------------------------
-Added a `copy_with` method to the `Plottable` class to create modified copies of Plottables with updated attributes.

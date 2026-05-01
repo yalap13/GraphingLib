@@ -1,5 +1,7 @@
 from __future__ import annotations as _annotations_
 
+from .inherit import INHERIT, Inherit, is_inherit
+
 from collections import OrderedDict
 from copy import deepcopy
 from logging import warning
@@ -62,9 +64,11 @@ class SmartFigure:
 
     It allows for the creation of complex figures recursively, where each :class:`~graphinglib.SmartFigure` can contain
     other :class:`~graphinglib.SmartFigure` objects. The class supports a variety of customization options as well as
-    the ability to use styles and themes for consistent visual appearance across different figures. The idea behind this
-    class is that every SmartFigure contains a single x_label, y_label, title, projection, etc. and that nested
-    SmartFigures can be inserted into the main SmartFigure to create complex figures with more parameters.
+    the ability to use styles and themes for consistent visual appearance across different figures. A SmartFigure can
+    either be used directly as a single plot containing :class:`~graphinglib.Plottable` objects, or as a layout that
+    arranges child :class:`~graphinglib.SmartFigure` objects on a grid. The idea behind this class is that every
+    SmartFigure contains a single x_label, y_label, title, projection, etc. and that nested SmartFigures can be
+    inserted into the main SmartFigure to create complex figures with more parameters.
 
     Parameters
     ----------
@@ -77,6 +81,7 @@ class SmartFigure:
     size : tuple[float, float], optional
         Overall size of the figure. Note that this option is useless if the SmartFigure is nested inside another
         SmartFigure, as the size is then determined by the parent SmartFigure and the available space.
+        Figure size is in inches; typical width is ``4`` to ``12`` and typical height is ``3`` to ``8``.
         Default depends on the ``figure_style`` configuration.
     title : str, optional
         General title of the figure.
@@ -87,13 +92,14 @@ class SmartFigure:
         Labels for the x and y axes of each subfigure, respectively. This is only useful for figures that are not a
         single subplot and when each subfigure needs its own x and y labels. This prevents the creation of nested
         :class:`~graphinglib.SmartFigure` objects for each subfigure only to set the x and y labels. This list cannot
-        be longer than the number of non-empty subplots and None values can be used to skip specific subplots.
+        be longer than the number of subfigures drawn by the SmartFigure and None values can be used to skip specific
+        subfigures.
     subtitles : Iterable[str], optional
         Labels for the subtitles of each subfigure, respectively. Similarly to `sub_x_labels` and `sub_y_labels`, this
         allows to set subtitles for each subfigure without needing to create nested
         :class:`~graphinglib.SmartFigure` objects. It is only useful for figures that are not a single subplot and when
-        each subfigure needs its own subtitle. This list cannot be longer than the number of non-empty subplots and None
-        values can be used to skip specific subplots.
+        each subfigure needs its own subtitle. This list cannot be longer than the number of subfigures drawn by the
+        SmartFigure and None values can be used to skip specific subfigures.
     log_scale_x, log_scale_y : bool | list[bool], optional
         Whether to use a logarithmic scale for the x and y axes, respectively. This can be given as a single value or
         a list of values to apply to each subplot.
@@ -107,7 +113,7 @@ class SmartFigure:
         space. If set to "equal", the aspect ratio is set to 1:1. If set to a float, the aspect ratio represents the
         ratio of the height to the width of the data. This can be given as a single value or a list of values to apply
         to each subplot.
-        Defaults to "auto".
+        Values are ``"equal"``, ``"auto"``, or a positive float. Defaults to ``"auto"``.
 
         .. warning::
             This parameter must not be confused with the `box_aspect_ratio` parameter, which is the aspect ratio of the
@@ -153,7 +159,7 @@ class SmartFigure:
             of the axes, which may lead to overlapping between axes. Consider modifying the `size` or `width_padding`
             parameters to avoid this issue.
     reference_labels_loc : Literal["inside", "outside"] | tuple[float, float] | list, optional
-        Location of the reference labels of the SubFigures, which can be either "inside", "outside" or a tuple of
+        Location of the reference labels of the SubFigures, which can be either ``"inside"``, ``"outside"``, or a tuple of
         (x, y) relative coordinates to the top-left corner of each subfigure. This can be given as a single value or a
         list of values to apply to each subplot.
         Defaults to ``"outside"``.
@@ -171,9 +177,8 @@ class SmartFigure:
         subfigures.
 
         .. note::
-            Sharing axes only works for plots directly inside the SmartFigure. If a nested SmartFigure is used, the
-            axes sharing will not be applied to the nested SmartFigure. Instead, the nested SmartFigure will have its
-            own axes sharing settings.
+            Sharing axes only works for plots drawn directly in the SmartFigure. If you insert an existing nested
+            SmartFigure, that nested figure keeps its own axes sharing settings.
 
     projection : Any | list[Any], optional
         Projection type for the subfigures. This can be a string of a matplotlib projection (e.g., "polar") or an object
@@ -222,20 +227,23 @@ class SmartFigure:
     figure_style : str, optional
         The figure style to use for the figure. The default style can be set using ``gl.set_default_style()``.
         Defaults to ``"default"``.
-    elements : Iterable[Plottable | SmartFigure] | Iterable[Iterable[Plottable | SmartFigure]], optional
+    elements : Plottable | Iterable[Plottable | SmartFigure | None] | Iterable[Iterable[Plottable | None]], optional
         The elements to plot in the figure.
-        If an iterable of depth 1 is provided and the figure is 1x1, all the elements are added to the unique plot. For
-        other geometries, the elements are added one by one in the order they are provided to each subplot, and the
-        iterable should not be longer than the number of subplots.
-        If an iterable of depth 2 is provided, each sub-iterable is added to the corresponding subplot, in the order
-        they are provided. The number of sub-iterables should be equal to the number of subplots.
-        If ``None`` elements are present in the iterable, the corresponding subplots are not drawn and a blank space is
-        left in the figure. If iterables containing only ``None`` are given in the main iterable, the corresponding
-        subplots are drawn but empty.
+        For a standalone :class:`~graphinglib.SmartFigure`:class:`~graphinglib.SmartFigure`, this can be a single
+        :class:`~graphinglib.Plottable` or an iterable of :class:`~graphinglib.Plottable` objects to plot in the figure.
+        For a :class:`~graphinglib.SmartFigure` with multiple cells, passing a single :class:`~graphinglib.Plottable`
+        will add it in the first cell of the figure. If an iterable is provided for a figure with multiple cells,
+        the items are assigned to the cells from left-to-right, top-to-bottom. Each item can be a child
+        :class:`~graphinglib.SmartFigure`, a :class:`~graphinglib.Plottable`, an iterable of :class:`~graphinglib.Plottable`
+        objects, or ``None``. The iterable can be shorter than the total number of cells, in which case the remaining cells
+        are left empty. If a :class:`~graphinglib.SmartFigure` is provided, it occupies exactly one cell in the parent figure.
+        Its ``num_rows`` and ``num_cols`` only describe its internal layout.
 
         .. note::
-            This method for adding elements only allows to add elements to single subplots. If you want to add elements
-            that span multiple subplots, you should use the __setitem__ method instead.
+            The ``elements`` parameter does not use a child :class:`~graphinglib.SmartFigure`'s shape to determine how
+            much space it occupies in the parent. If you want a bare :class:`~graphinglib.Plottable`, an iterable of
+            Plottables, or a child :class:`~graphinglib.SmartFigure` to span multiple subplots in the parent, you
+            should use the __setitem__ method instead.
             For example, to add an element spanning the complete first row , use ``fig[0,:] = element``.
 
     annotations : Iterable[Text], optional
@@ -250,7 +258,7 @@ class SmartFigure:
         num_cols: int = 1,
         x_label: str | None = None,
         y_label: str | None = None,
-        size: tuple[float, float] | Literal["default"] = "default",
+        size: tuple[float, float] | Inherit = INHERIT,
         title: str | None = None,
         x_lim: ListOrItem[tuple[float, float] | None] = None,
         y_lim: ListOrItem[tuple[float, float] | None] = None,
@@ -284,11 +292,17 @@ class SmartFigure:
         show_legend: ListOrItem[bool] = True,
         twin_x_axis: SmartTwinAxis | None = None,
         twin_y_axis: SmartTwinAxis | None = None,
-        figure_style: str = "default",
-        elements: Iterable[Plottable | SmartFigure | None]
+        figure_style: str | Inherit = INHERIT,
+        elements: Plottable
+        | Iterable[Plottable | SmartFigure | None]
         | Iterable[Iterable[Plottable | None]] = [],
         annotations: Iterable[Text] | None = None,
     ) -> None:
+        self._mode: Literal["leaf", "container"] = "leaf"
+        self._leaf_elements: list[Plottable] = []
+        self._children: OrderedDict[tuple[slice, slice], SmartFigure] = OrderedDict()
+        self._is_auto_child = False
+        self._flatten_in_parent = False
         self.num_rows = num_rows
         self.num_cols = num_cols
         self.x_label = x_label
@@ -326,6 +340,8 @@ class SmartFigure:
         self.twin_x_axis = twin_x_axis
         self.twin_y_axis = twin_y_axis
         self.figure_style = figure_style
+        if isinstance(elements, Plottable):
+            elements = [elements]
         self.elements = elements
         self.annotations = annotations
 
@@ -337,6 +353,9 @@ class SmartFigure:
         self._tick_params = {"x major": {}, "y major": {}, "x minor": {}, "y minor": {}}
         self._pad_params = {}
         self._reference_labels_params = {}
+
+        self._x_axis_label_color = "k"
+        self._y_axis_label_color = "k"
 
         self.show_grid = False
         self._grid = {}
@@ -361,19 +380,27 @@ class SmartFigure:
             raise TypeError("num_rows must be an integer.")
         if value < 1:
             raise ValueError("num_rows must be greater than 0.")
+        should_promote = False
         # Check if the number of rows is being reduced and conflicts with existing elements
         try:
             if self._num_rows > value:
                 removed_rows = list(range(value, self._num_rows))
-                for pos, element in self._elements.items():
+                for pos, element in self._children.items():
                     if (pos[0].stop - 1) in removed_rows and element:
                         raise GraphingException(
                             "Cannot remove rows from the SmartFigure when there are elements in "
                             "them. Please remove the elements first."
                         )
+            should_promote = (
+                self._mode == "leaf"
+                and self._num_rows * self._num_cols == 1
+                and value * self._num_cols > 1
+            )
         except AttributeError:
             # The figure is being created, so the _num_rows attribute is not yet set
             pass
+        if should_promote:
+            self._promote_leaf_to_container()
         self._num_rows = value
 
     @property
@@ -386,19 +413,27 @@ class SmartFigure:
             raise TypeError("num_cols must be an integer.")
         if value < 1:
             raise ValueError("num_cols must be greater than 0.")
+        should_promote = False
         # Check if the number of rows is being reduced and conflicts with existing elements
         try:
             if self._num_cols > value:
                 removed_cols = list(range(value, self._num_cols))
-                for pos, element in self._elements.items():
+                for pos, element in self._children.items():
                     if (pos[1].stop - 1) in removed_cols and element:
                         raise GraphingException(
                             "Cannot remove cols from the SmartFigure when there are elements in "
                             "them. Please remove the elements first."
                         )
+            should_promote = (
+                self._mode == "leaf"
+                and self._num_rows * self._num_cols == 1
+                and self._num_rows * value > 1
+            )
         except AttributeError:
             # The figure is being created, so the _num_cols attribute is not yet set
             pass
+        if should_promote:
+            self._promote_leaf_to_container()
         self._num_cols = value
 
     @property
@@ -426,12 +461,12 @@ class SmartFigure:
         self._y_label = value
 
     @property
-    def size(self) -> tuple[float, float] | Literal["default"]:
+    def size(self) -> tuple[float, float] | Inherit:
         return self._size
 
     @size.setter
-    def size(self, value: tuple[float, float] | Literal["default"]):
-        if not isinstance(value, tuple) and value != "default":
+    def size(self, value: tuple[float, float] | Inherit):
+        if not isinstance(value, tuple) and value != INHERIT:
             raise TypeError("size must be a tuple or 'default'.")
         if isinstance(value, tuple) and len(value) != 2:
             raise ValueError("size must be a tuple of length 2.")
@@ -754,6 +789,8 @@ class SmartFigure:
                         "WCS projection should be used with the SmartFigureWCS object."
                     )
         self._projection = value
+        if hasattr(self, "_children"):
+            self._sync_auto_child_projections()
 
     @property
     def general_legend(self) -> bool:
@@ -861,35 +898,66 @@ class SmartFigure:
         self._twin_y_axis = value
 
     @property
-    def figure_style(self) -> str:
+    def figure_style(self) -> str | Inherit:
         return self._figure_style
 
     @figure_style.setter
-    def figure_style(self, value: str) -> None:
-        if not isinstance(value, str):
-            raise TypeError("figure_style must be a string.")
-        available_styles = ["default", "matplotlib"] + get_styles(matplotlib=True)
+    def figure_style(self, value: str | Inherit) -> None:
+        if not isinstance(value, str) and not is_inherit(value):
+            raise TypeError("figure_style must be a string or INHERIT.")
+        available_styles = [INHERIT, "matplotlib"] + get_styles(matplotlib=True)
         if value not in available_styles:
             raise ValueError(f"figure_style must be one of {available_styles}.")
         self._figure_style = value
 
     @property
-    def elements(self) -> dict[tuple[slice, slice], Plottable | SmartFigure]:
-        return self._elements
+    def elements(self) -> list[Plottable] | list[SmartFigure | None]:
+        if self._mode == "leaf":
+            return self._leaf_elements
+
+        dense: list[SmartFigure | None] = [None] * (self._num_rows * self._num_cols)
+        for (rows, cols), child in self._iter_child_items():
+            dense[rows.start * self._num_cols + cols.start] = child
+        return dense
 
     @elements.setter
     def elements(
         self,
-        value: Iterable[Plottable | SmartFigure | None]
-        | Iterable[Iterable[Plottable | None]],
+        value: (
+            Plottable
+            | Iterable[Plottable | SmartFigure | None]
+            | Iterable[Iterable[Plottable | None]]
+        ),
     ) -> None:
         """
-        Sets the elements of the SmartFigure with the same rules as the constructor. For adding elements instead of
-        replacing them, use the :meth:`~graphinglib.SmartFigure.add_elements` or the
+        Sets the elements of the SmartFigure with the same rules as the constructor.
+
+        Assigning a single :class:`~graphinglib.Plottable` or an iterable of Plottables replaces the contents of the
+        SmartFigure's single plot.
+        Assigning a flat iterable containing :class:`~graphinglib.SmartFigure` objects, Plottables, iterables of
+        Plottables, or ``None`` fills the figure's grid from left-to-right, top-to-bottom and rebuilds its subplot
+        layout from scratch.
+
+        For adding elements instead of replacing them, use the :meth:`~graphinglib.SmartFigure.add_elements` or the
         :meth:`~graphinglib.SmartFigure.__setitem__` methods.
         """
-        self._elements = {}  # systematically reset the elements when setting them with the property
-        self.add_elements(*value)
+        if isinstance(value, SmartFigure):
+            raise TypeError("Leaf elements cannot be assigned a SmartFigure directly.")
+
+        if isinstance(value, Plottable):
+            self._ensure_leaf_mode()
+            self._leaf_elements = [value]
+            return
+
+        if not isinstance(value, Iterable):
+            raise TypeError("elements must be a Plottable or an iterable.")
+
+        value_list = list(value)
+        if self._should_use_container_elements_setter(value_list):
+            self._set_container_elements(value_list)
+        else:
+            self._ensure_leaf_mode()
+            self._leaf_elements = self._normalize_leaf_rhs(value_list)
 
     @property
     def annotations(self) -> Iterable[Text] | None:
@@ -970,20 +1038,27 @@ class SmartFigure:
     @property
     def is_single_subplot(self) -> bool:
         """
-        Whether the SmartFigure is a single subplot (1x1). This is useful to determine if the SmartFigure can be used
-        as a single plot or if it contains multiple subplots.
+        Whether the SmartFigure currently behaves as a single plot.
+
+        This is useful to determine if the SmartFigure can directly host Plottables and twin axes or if it currently
+        behaves as a layout containing child SmartFigures.
 
         .. note::
             This property is used to verify if custom legend elements can be added to the SmartFigure even if the
             :attr:`~graphinglib.SmartFigure.general_legend` is set to ``False``.
         """
-        return self.num_rows == 1 and self.num_cols == 1
+        return self._mode == "leaf"
 
     def __len__(self) -> int:
         """
-        Gives the number of non-empty subplots in the :class:`~graphinglib.SmartFigure`.
+        Gives the number of immediate contents in the :class:`~graphinglib.SmartFigure`.
+
+        For a SmartFigure used as a single plot, this is the number of Plottables in that plot.
+        For a SmartFigure used as a layout, this is the number of immediate child SmartFigures.
         """
-        return len(self._elements)
+        if self._mode == "leaf":
+            return len(self._leaf_elements)
+        return len(self._children)
 
     def __setitem__(
         self,
@@ -1003,13 +1078,19 @@ class SmartFigure:
             indexing. If slices are provided, the element can span multiple squares in the grid. If ``num_rows`` or
             ``num_cols`` is set to 1, the key can be a single int or slice. Otherwise, the key must be a two-tuple.
         element : Plottable | Iterable[Plottable | None] | SmartFigure | None
-            The element(s) to assign. Must be a Plottable, an iterable of Plottable objects, or a SmartFigure. If None,
-            the element at the specified key will be removed. Note that the exact slice used for inserting Plottables or
-            a SmartFigure must be provided to remove it.
+            The element(s) to assign. Must be a Plottable, an iterable of Plottable objects, or a SmartFigure. If a
+            Plottable or an iterable of Plottables is provided, the selected area becomes a child plot containing those
+            elements. If ``None``, any child overlapping with the specified key will be removed.
 
             .. note::
-                It is also possible to add a list of Plottables to a subplot already containing Plottables using the
-                ``+=`` operator.
+                - SmartFigures used as a single plot do not support subplot assignment. To use ``__setitem__``, first
+                  create a layout by setting ``num_rows`` or ``num_cols`` larger than 1.
+                - You can access and modify multi-cell child figures by indexing any cell they occupy.
+                - Setting a cell to None will delete the entire child figure occupying that cell.
+                - Assigning new Plottables to a cell with an existing child figure replaces that child figure's plotted
+                  elements while preserving its span.
+                - You can add elements to an existing child plot using the ``+=`` operator.
+                - If the requested slice overlaps with multiple different child figures, a GraphingException is raised.
 
         Examples
         --------
@@ -1031,10 +1112,14 @@ class SmartFigure:
             | Histogram               |
             +-------------------------+
 
-        We can add elements using the ``+=`` operator and remove them using ``None``::
+        We can add elements using the ``+=`` operator and remove them using ``None``. Notice that we can access
+        the multi-cell Histogram by indexing any cell it occupies::
 
             fig[0, 0] += [gl.Curve(x2, y2)]
             fig[0, 1] = None
+            fig[1, 0] = None  # This deletes the Histogram even though it spans both cells
+            # Or equivalently:
+            # fig[1, :] = None
 
         Which will result in the following layout::
 
@@ -1043,27 +1128,33 @@ class SmartFigure:
             | Curve      |            |
             | Curve      |            |
             +------------+------------+
-            | 1,0          1,1        |
-            | Histogram               |
-            +-------------------------+
+            | 1,0        | 1,1        |
+            |            |            |
+            +------------+------------+
 
-        We can also insert a nested SmartFigure into a specific region of the SmartFigure and remove the bottom plot::
+        We can also insert a nested SmartFigure. If it overlaps with existing elements, they will be replaced::
 
             subfigure = SmartFigure(num_rows=2, num_cols=1)
             subfigure.add_elements(gl.Heatmap(data1), gl.Heatmap(data2))
-            fig[0, 1] = subfigure
-            fig[1, :] = None
+            fig[0, 1] = subfigure  # Placed in the top-right cell
 
         Which will lead to the following layout::
 
             +------------+------------+
             | 0,0        | Heatmap    |
             | Curve      +------------+
-            |            | Heatmap    |
+            | Curve      | Heatmap    |
             +------------+------------+
             | 1,0        | 1,1        |
+            |            |            |
             +------------+------------+
         """
+        if self._mode == "leaf":
+            raise GraphingException(
+                "SmartFigures used as a single plot do not support subplot assignment. "
+                "Increase num_rows or num_cols first to turn the SmartFigure into a layout."
+            )
+
         if not any(
             [
                 element is None,
@@ -1074,56 +1165,109 @@ class SmartFigure:
             raise TypeError(
                 "Element must be a Plottable, an iterable of Plottables, or a SmartFigure."
             )
-        key_ = self._validate_and_normalize_key(key)
-        if element is None:
-            self._elements.pop(key_, None)
-        else:
-            # Normalize all iterables to lists for consistency
-            if isinstance(element, Plottable):
-                el = [element]
-            elif isinstance(element, Iterable) and not isinstance(element, SmartFigure):
-                el = list(element)
-            else:
-                el = element
-            self._elements[key_] = el
 
-    def __getitem__(
-        self, key: int | slice | tuple[int | slice]
-    ) -> list[Plottable] | SmartFigure:
+        key_ = self._validate_and_normalize_key(key)
+        overlapping = self._get_overlapping_elements(key_)
+
+        if element is None:
+            if len(overlapping) == 0:
+                return
+            if len(overlapping) > 1:
+                raise GraphingException(
+                    f"The requested slice {key} overlaps with multiple subfigures. "
+                    f"Cannot delete multiple subfigures at once. Please delete each subfigure separately."
+                )
+            self._children.pop(overlapping[0][0])
+            return
+
+        if isinstance(element, SmartFigure):
+            if len(overlapping) > 1:
+                raise GraphingException(
+                    f"The requested slice {key} overlaps with multiple subfigures. "
+                    f"Cannot assign a new element to a position that overlaps with multiple subfigures. "
+                    f"Please remove the overlapping subfigures first or use a more specific slice."
+                )
+            if len(overlapping) == 1:
+                existing_key, existing_child = overlapping[0]
+                if element is existing_child and existing_key == key_:
+                    return
+                self._children.pop(existing_key)
+            element._flatten_in_parent = False
+            element._is_auto_child = False
+            self._children[key_] = element
+            self._children = self._ordered_children()
+            return
+
+        normalized = self._normalize_leaf_rhs(element)
+        if len(overlapping) == 0:
+            self._children[key_] = self._make_auto_child(normalized)
+            changed_span = key_
+            changed_child = self._children[key_]
+        elif len(overlapping) == 1:
+            existing_key, existing_child = overlapping[0]
+            existing_child._ensure_leaf_mode()
+            existing_child._leaf_elements = normalized
+            self._children.move_to_end(existing_key)
+            changed_span = existing_key
+            changed_child = existing_child
+        else:
+            raise GraphingException(
+                f"The requested slice {key} overlaps with multiple subfigures. "
+                f"Cannot assign a new element to a position that overlaps with multiple subfigures. "
+                f"Please remove the overlapping subfigures first or use a more specific slice."
+            )
+        self._children = self._ordered_children()
+        self._sync_auto_child_projection(changed_span, changed_child)
+
+    def __getitem__(self, key: int | slice | tuple[int | slice]) -> SmartFigure:
         """
-        Gives the element(s) at the specified key in the SmartFigure. This can be used to modify or extract directly an
-        element in the SmartFigure. The indexing follows classical 2D numpy-like indexing, where the first element
-        corresponds to the row and the second element corresponds to the column.
+        Gives the child SmartFigure at the specified key in the SmartFigure. This can be used to modify or extract
+        directly a child figure in a SmartFigure used as a layout. The indexing follows classical 2D numpy-like indexing,
+        where the first element corresponds to the row and the second element corresponds to the column.
 
         Parameters
         ----------
         key : int | slice | tuple[int | slice]
-            The key specifying the location(s) in the SmartFigure to access. If a tuple of ints is provided, the element
-            is accessed in the corresponding square of the grid, following classical 2D numpy-like indexing. If slices
-            are provided, an element spanning multiple squares in the grid can be retrieved. If ``num_rows`` or
+            The key specifying the location(s) in the SmartFigure to access. If a tuple of ints is provided, the child
+            figure is accessed in the corresponding square of the grid, following classical 2D numpy-like indexing. If
+            slices are provided, a child figure spanning multiple squares in the grid can be retrieved. If ``num_rows`` or
             ``num_cols`` is set to 1, the key can be a single int or slice to index into the single row or column.
             Otherwise, the key must be a two-tuple.
 
             .. note::
-                The exact slice of the element must be provided to access it. This means that if an element spans
-                multiple subplots, the given slice also needs to span these subplots.
+                If a child figure spans multiple cells, you can access it by indexing any cell it occupies. For
+                example, if a child figure spans ``[0, :]`` (entire first row), you can access it via ``fig[0, :]``,
+                ``fig[0, 0]``, or ``fig[0, 1]`` (assuming there are at least 2 columns). If the requested slice
+                overlaps with multiple different child figures, a GraphingException is raised. SmartFigures used as a
+                single plot do not support subplot indexing.
 
         Returns
         -------
-        list[Plottable] | SmartFigure
-            The element(s) at the specified key, which can be a list of Plottables or a SmartFigure. If there is no
-            elements at the given key, an empty list is returned.
+        SmartFigure
+            The child SmartFigure at the specified key.
         """
-        key_ = self._validate_and_normalize_key(key)
-        return self._elements.get(key_, [])
+        if self._mode == "leaf":
+            raise GraphingException(
+                "Leaf SmartFigures do not support subplot indexing."
+            )
+        span, child = self._get_selected_child(
+            self._validate_and_normalize_key(key), key
+        )
+        self._sync_auto_child_projection(span, child)
+        return child
 
-    def __iter__(self) -> Iterator[list[Plottable] | SmartFigure]:
+    def __iter__(self) -> Iterator[Plottable | SmartFigure]:
         """
-        Iterates over the elements in the SmartFigure in order of their position in the grid, from top-left to
-        bottom-right.
+        Iterates over the immediate contents of the SmartFigure.
+
+        SmartFigures used as a single plot yield their Plottables in insertion order. SmartFigures used as a layout
+        yield their immediate child SmartFigures in grid order from top-left to bottom-right.
         """
-        for element in self._ordered_elements.values():
-            yield element
+        if self._mode == "leaf":
+            yield from self._leaf_elements
+            return
+        for _, child in self._iter_child_items():
+            yield child
 
     def __deepcopy__(self, memo: dict) -> Self:
         """
@@ -1170,20 +1314,47 @@ class SmartFigure:
 
             fig2 = fig1.copy_with(x_label=None, y_label=None)
         """
-        return _copy_with_overrides(self, **kwargs)
+        new_copy = _copy_with_overrides(self, **kwargs)
+        if "figure_style" in kwargs and "elements" not in kwargs:
+            new_copy._reset_stylable_elements_to_default()
+        return new_copy
+
+    def _reset_stylable_elements_to_default(self) -> None:
+        style_name = self._figure_style
+        if style_name == INHERIT:
+            style_name = get_default_style()
+        try:
+            defaults = FileLoader(style_name).load()
+        except FileNotFoundError:
+            return
+
+        for element in self._iter_all_plottables_recursive():
+            object_type = type(element).__name__
+            for property_ in defaults.get(object_type, {}):
+                if hasattr(element, property_):
+                    setattr(element, property_, INHERIT)
+
+    def _iter_all_plottables_recursive(self) -> Iterator[Plottable]:
+        if self._mode == "leaf":
+            yield from self._leaf_elements
+            return
+        for child in self._children.values():
+            yield from child._iter_all_plottables_recursive()
 
     @property
     def _ordered_elements(self) -> OrderedDict:
-        """
-        Gives the _elements dict sorted by the starting position of the slices. This is used to ensure that the
-        elements are plotted in the correct order when creating the figure.
-        """
-        return OrderedDict(
-            sorted(
-                self._elements.items(),
-                key=lambda item: (item[0][0].start, item[0][1].start),
-            )
-        )
+        if self._mode == "leaf":
+            if not self._leaf_elements:
+                return OrderedDict()
+            return OrderedDict({(slice(0, 1), slice(0, 1)): list(self._leaf_elements)})
+
+        ordered = OrderedDict()
+        for span, child in self._ordered_children().items():
+            if child._flatten_in_parent:
+                ordered[span] = list(child._leaf_elements)
+            else:
+                ordered[span] = child
+        return ordered
 
     def _validate_and_normalize_key(
         self, key: int | slice | tuple[int | slice]
@@ -1269,34 +1440,76 @@ class SmartFigure:
         bool
             True if the item is an iterable of Plottable elements or None, False otherwise.
         """
-        return isinstance(item, Iterable) and all(
-            isinstance(el, (Plottable, type(None))) for el in item
+        return (
+            not isinstance(item, (str, bytes, SmartFigure))
+            and isinstance(item, Iterable)
+            and all(isinstance(el, (Plottable, type(None))) for el in item)
         )
+
+    def _get_overlapping_elements(
+        self, key: tuple[slice, slice]
+    ) -> list[tuple[tuple[slice, slice], SmartFigure]]:
+        """
+        Finds all child SmartFigures that overlap with the specified key range.
+
+        Parameters
+        ----------
+        key : tuple[slice, slice]
+            The key range to check for overlaps, as a tuple of two slices.
+
+        Returns
+        -------
+        list[tuple[tuple[slice, slice], SmartFigure]]
+            A list of tuples, each containing the key and child SmartFigure that overlaps with the specified range.
+        """
+        overlapping = []
+        row_slice, col_slice = key
+
+        for existing_key, element in self._children.items():
+            existing_row, existing_col = existing_key
+
+            # Check if there's any overlap
+            row_overlap = not (
+                row_slice.stop <= existing_row.start
+                or row_slice.start >= existing_row.stop
+            )
+            col_overlap = not (
+                col_slice.stop <= existing_col.start
+                or col_slice.start >= existing_col.stop
+            )
+
+            if row_overlap and col_overlap:
+                overlapping.append((existing_key, element))
+
+        return overlapping
 
     def add_elements(
         self,
         *elements: Plottable | SmartFigure | None | Iterable[Plottable | None],
     ) -> Self:
         """
-        Adds one or more :class:`~graphinglib.Plottable` or :class:`~graphinglib.SmartFigure` to the current
-        SmartFigure. This method is equivalent to using the :meth:`~graphinglib.SmartFigure.__setitem__` method, but can
-        only add elements spanning single subplots.
+        Adds one or more :class:`~graphinglib.Plottable` objects to the current SmartFigure.
+
+        If the SmartFigure is used as a single plot, the elements are appended to that plot.
+        If the SmartFigure is used as a layout, the elements are applied to the grid from left to right, then top to
+        bottom. Existing child plots are appended to, and empty positions are filled by creating new child plots as
+        needed. This method is equivalent to using the :meth:`~graphinglib.SmartFigure.__setitem__` method for single
+        cells, but can only add elements spanning single subplots.
 
         Parameters
         ----------
-        elements : Plottable | SmartFigure | Iterable[Plottable | SmartFigure]
-            Elements to plot in the :class:`~graphinglib.SmartFigure`. Each given element is added in turn to each
-            subplot in the order they are provided. Iterables of :class:`~graphinglib.Plottable` objects can be provided
-            to add multiple elements in the same subplot. The number of provided elements must be at most the number of
-            subplots unless the :class:`~graphinglib.SmartFigure` is a single subplot, in which case all elements are
-            added to the unique plot. If ``None`` elements are present, the corresponding subplot is skipped and not
-            drawn. If iterables containing only ``None`` are given, the corresponding subplots are drawn but will appear
-            empty.
+        elements : Plottable | Iterable[Plottable]
+            Elements to plot in the :class:`~graphinglib.SmartFigure`. Iterables of
+            :class:`~graphinglib.Plottable` objects can be provided to add multiple elements to the same plot.
+            If the SmartFigure is used as a single plot, all provided elements are added to that plot. If the
+            SmartFigure is used as a layout, the given elements are applied to the grid from left to right, then
+            top to bottom. Existing child plots are appended to, and empty positions are filled by creating new child
+            plots as needed. If ``None`` elements are present, the corresponding target is skipped.
 
             .. note::
-                This method for adding elements only allows to add elements to single subplots. If you want to add
-                elements that span multiple subplots, you should use the :meth:`~graphinglib.SmartFigure.__setitem__`
-                method instead.
+                This method can create new 1x1 child plots when filling an existing layout, but it does not create
+                multi-cell spans. If you want to add elements that span multiple subplots, you should use the
+                :meth:`~graphinglib.SmartFigure.__setitem__` method instead.
 
         Returns
         -------
@@ -1309,29 +1522,262 @@ class SmartFigure:
             For more information on how to use the ``__setitem__`` method to add elements that span multiple columns or
             rows to the :class:`~graphinglib.SmartFigure`.
         """
-        if len(elements) > 0:
-            if (
-                len(elements) > self._num_cols * self._num_rows
-                and not self.is_single_subplot
-            ):
-                raise ValueError(
-                    "Too many elements provided for the number of subplots."
-                )
-            # Check the type of each element
-            for i, element in enumerate(elements):
-                index = (0, 0) if self.is_single_subplot else divmod(i, self._num_cols)
+        if self._mode == "leaf":
+            for element in elements:
+                if element is None:
+                    continue
                 if isinstance(element, Plottable):
-                    self[index] += [element]
+                    self._leaf_elements.append(element)
                 elif SmartFigure._is_iterable_of_plottables(element):
-                    self[index] += list(element)
-                elif isinstance(element, SmartFigure):
-                    self[index] = element
-                elif element is not None:
+                    self._leaf_elements.extend(self._normalize_leaf_rhs(element))
+                else:
                     raise TypeError(
-                        f"Element at index {i} must be a Plottable, an iterable of Plottables, or a SmartFigure, "
-                        f"not {type(element).__name__}."
+                        "Leaf SmartFigures only accept Plottables or iterables of Plottables in add_elements."
                     )
+            return self
+
+        max_cells = self._num_rows * self._num_cols
+        if len(elements) > max_cells:
+            raise ValueError(
+                "Too many elements provided for the number of cells in the SmartFigure."
+            )
+
+        for index, element in enumerate(elements):
+            if element is None:
+                continue
+            if isinstance(element, SmartFigure):
+                raise TypeError("Container add_elements does not accept SmartFigures.")
+            key = self._dense_index_to_key(index)
+            overlapping = self._get_overlapping_elements(key)
+
+            if len(overlapping) > 1:
+                raise GraphingException(
+                    "Cannot add elements to a cell that overlaps with multiple different subfigures."
+                )
+
+            if len(overlapping) == 0:
+                self._children[key] = self._make_auto_child(element)
+                self._children = self._ordered_children()
+                self._sync_auto_child_projection(key, self._children[key])
+                continue
+
+            _, child = overlapping[0]
+            if not child.is_single_subplot:
+                raise GraphingException(
+                    "add_elements can only append to child SmartFigures that are used as a single plot."
+                )
+            child += element
         return self
+
+    def __add__(self, other):
+        result = self.copy()
+        result += other
+        return result
+
+    def __iadd__(self, other):
+        if self._mode == "leaf":
+            self._leaf_elements.extend(self._normalize_leaf_rhs(other))
+            return self
+
+        if isinstance(other, SmartFigure) or not isinstance(other, Iterable):
+            raise TypeError(
+                "Container SmartFigure += expects a dense iterable of Plottables or iterables of Plottables."
+            )
+
+        values = list(other)
+        dense = self.elements
+        for index, value in enumerate(values):
+            if index >= len(dense) or value is None:
+                continue
+            child = dense[index]
+            if child is None:
+                continue
+            if isinstance(value, SmartFigure):
+                raise TypeError(
+                    "Container SmartFigure += does not accept SmartFigures."
+                )
+            child += value
+        return self
+
+    def _ensure_leaf_mode(self) -> None:
+        self._mode = "leaf"
+        self._children = OrderedDict()
+
+    def _ensure_container_mode(self) -> None:
+        if self._mode == "container":
+            return
+        self._mode = "container"
+        self._leaf_elements = []
+
+    def _promote_leaf_to_container(self) -> None:
+        if self._mode != "leaf":
+            return
+        child = None
+        if (
+            self._leaf_elements
+            or self._twin_x_axis is not None
+            or self._twin_y_axis is not None
+        ):
+            child = self.copy()
+            child._num_rows = 1
+            child._num_cols = 1
+            child._mode = "leaf"
+            child._children = OrderedDict()
+            child._is_auto_child = True
+            child._flatten_in_parent = True
+        self._mode = "container"
+        self._leaf_elements = []
+        self._twin_x_axis = None
+        self._twin_y_axis = None
+        self._children = OrderedDict()
+        if child is not None:
+            self._children[(slice(0, 1), slice(0, 1))] = child
+
+    def _ordered_children(self) -> OrderedDict[tuple[slice, slice], SmartFigure]:
+        return OrderedDict(
+            sorted(
+                self._children.items(),
+                key=lambda item: (item[0][0].start, item[0][1].start),
+            )
+        )
+
+    def _iter_child_items(self) -> Iterator[tuple[tuple[slice, slice], SmartFigure]]:
+        yield from self._ordered_children().items()
+
+    def _make_auto_child(
+        self, value: Plottable | Iterable[Plottable | None]
+    ) -> SmartFigure:
+        if isinstance(self, SmartFigureWCS):
+            projection = (
+                self._projection[0]
+                if isinstance(self._projection, list)
+                else self._projection
+            )
+            child = self.__class__(projection=projection)
+        else:
+            child = SmartFigure()
+        child._is_auto_child = True
+        child._flatten_in_parent = True
+        child.elements = self._normalize_leaf_rhs(value)
+        return child
+
+    def _sync_auto_child_projection(
+        self, span: tuple[slice, slice], child: SmartFigure
+    ) -> None:
+        if not child._is_auto_child:
+            return
+        projection = self._projection
+        if isinstance(projection, list):
+            ordered_spans = [
+                existing_span for existing_span, _ in self._iter_child_items()
+            ]
+            try:
+                index = ordered_spans.index(span)
+            except ValueError:
+                index = 0
+            if not projection:
+                return
+            projection = projection[min(index, len(projection) - 1)]
+        if projection is None and isinstance(child, SmartFigureWCS):
+            return
+        child.projection = projection
+
+    def _sync_auto_child_projections(self) -> None:
+        for span, child in self._iter_child_items():
+            self._sync_auto_child_projection(span, child)
+
+    def _normalize_leaf_rhs(
+        self, value: Plottable | Iterable[Plottable | None]
+    ) -> list[Plottable]:
+        if isinstance(value, Plottable):
+            return [value]
+        if isinstance(value, SmartFigure) or not SmartFigure._is_iterable_of_plottables(
+            value
+        ):
+            raise TypeError(
+                "Leaf contents must be Plottables or iterables of Plottables."
+            )
+        return [element for element in value if element is not None]
+
+    def _get_selected_child(
+        self, key: tuple[slice, slice], original_key: Any = None
+    ) -> tuple[tuple[slice, slice], SmartFigure]:
+        if key in self._children:
+            return key, self._children[key]
+
+        overlapping = self._get_overlapping_elements(key)
+        if len(overlapping) == 0:
+            raise GraphingException(
+                f"The requested slice {original_key if original_key is not None else key} does not select a subfigure."
+            )
+        if len(overlapping) > 1:
+            raise GraphingException(
+                f"The requested slice {original_key if original_key is not None else key} overlaps with multiple subfigures. "
+                "Cannot return a single element. Please use a more specific slice that matches only one subfigure."
+            )
+        return overlapping[0]
+
+    def _should_use_container_elements_setter(self, value_list: list[Any]) -> bool:
+        if any(isinstance(value, SmartFigure) for value in value_list):
+            return True
+        if self._num_rows * self._num_cols > 1:
+            for value in value_list:
+                if value is None:
+                    return True
+                if SmartFigure._is_iterable_of_plottables(value):
+                    return True
+            return len(value_list) <= self._num_rows * self._num_cols
+        return False
+
+    def _dense_index_to_key(self, index: int) -> tuple[slice, slice]:
+        row, col = divmod(index, self._num_cols)
+        return (slice(row, row + 1), slice(col, col + 1))
+
+    def _set_container_elements(self, value_list: list[Any]) -> None:
+        self._ensure_container_mode()
+        self._children = OrderedDict()
+        dense = value_list + [None] * (
+            self._num_rows * self._num_cols - len(value_list)
+        )
+        occupied: set[tuple[int, int]] = set()
+
+        for index, value in enumerate(dense[: self._num_rows * self._num_cols]):
+            row, col = divmod(index, self._num_cols)
+            if (row, col) in occupied:
+                if value is not None:
+                    raise GraphingException(
+                        "Dense elements cannot assign a value to a cell already covered by a spanning child."
+                    )
+                continue
+            if value is None:
+                continue
+
+            if isinstance(value, SmartFigure):
+                row_span, col_span = 1, 1
+                child = value
+                child._flatten_in_parent = False
+                child._is_auto_child = False
+            else:
+                row_span, col_span = 1, 1
+                child = self._make_auto_child(value)
+
+            if row + row_span > self._num_rows or col + col_span > self._num_cols:
+                raise GraphingException(
+                    "Child SmartFigure does not fit in the target dense layout."
+                )
+
+            span = (slice(row, row + row_span), slice(col, col + col_span))
+            for covered_row in range(row, row + row_span):
+                for covered_col in range(col, col + col_span):
+                    if (covered_row, covered_col) in occupied:
+                        raise GraphingException(
+                            "Dense elements contain overlapping SmartFigure spans."
+                        )
+                    occupied.add((covered_row, covered_col))
+            self._children[span] = child
+
+        self._children = self._ordered_children()
+        self._sync_auto_child_projections()
 
     def show(
         self,
@@ -1444,7 +1890,12 @@ class SmartFigure:
             """Recursively saves each element of a SmartFigure to a separate page in the provided PdfPages object."""
             for element in self._ordered_elements.values():
                 if isinstance(element, (Plottable, list)):
-                    subfig = self.copy_with(elements=[element], num_rows=1, num_cols=1)
+                    leaf_elements = element if isinstance(element, list) else [element]
+                    subfig = self.copy_with(
+                        elements=leaf_elements,
+                        num_rows=1,
+                        num_cols=1,
+                    )
                 elif isinstance(element, SmartFigure):
                     subfig = element
                 subfig.save(pdf_file, dpi, transparent)
@@ -1495,7 +1946,7 @@ class SmartFigure:
         figure style, parameters and matplotlib figure and calls the :meth:`~graphinglib.SmartFigure._prepare_figure`
         method.
         """
-        if self._figure_style == "default":
+        if self._figure_style == INHERIT:
             self._figure_style = get_default_style()
         try:
             file_loader = FileLoader(self._figure_style)
@@ -1718,7 +2169,8 @@ class SmartFigure:
 
                 # Add reference label
                 if self._subplot_p["reference_labels"][subplot_i] and (
-                    len(self) > 1 or isinstance(self._figure, SubFigure)
+                    (1 if self._mode == "leaf" else len(self)) > 1
+                    or isinstance(self._figure, SubFigure)
                 ):
                     self._create_reference_label(ax, subplot_i)
 
@@ -1969,11 +2421,11 @@ class SmartFigure:
     def _fill_per_subplot_params(self) -> dict[str, Any]:
         """
         Fills the _subplot_p dictionary with parameters that can be broadcasted to all subplots in the
-        :class:`~graphinglib.SmartFigure`. If a parameter is given as a single value, it is broadcasted to all subplots.
-        If it is given as a list, its length must not exceed the number of non-empty subplots. Shorter lists are padded
-        using the default value for that parameter.
+        :class:`~graphinglib.SmartFigure`. If a parameter is given as a single value, it is broadcasted to all
+        subplots drawn by the SmartFigure. If it is given as a list, its length must not exceed the number of
+        subfigures the SmartFigure draws. Shorter lists are padded using the default value for that parameter.
         """
-        self_length = len(self)
+        self_length = 1 if self._mode == "leaf" else len(self)
         blank_figure = (
             SmartFigure()
         )  # create a blank SmartFigure to get the default parameter values
@@ -2013,11 +2465,11 @@ class SmartFigure:
             if isinstance(value, list):
                 if len(value) > self_length:
                     raise GraphingException(
-                        f"Number of {param} values ({len(value)}) must not exceed the number of non-empty subplots "
+                        f"Number of {param} values ({len(value)}) must not exceed the number of subfigures "
                         f"({self_length})."
                     )
                 elif len(value) < self_length:
-                    # Pad the list with default values to reach the number of non-empty subplots
+                    # Pad the list with default values to reach the number of subfigures
                     subplot_p[param] = value + [default_value] * (
                         self_length - len(value)
                     )
@@ -2066,9 +2518,9 @@ class SmartFigure:
         Aligns subplot spines when sharing x axes. This method solves the constrained_layout behavior of misaligning the
         edge of subplots to fill the entire grid space, which leads to misaligned spines even when sharing the x axes.
         """
-        for element in self._ordered_elements.values():
-            if isinstance(element, SmartFigure):
-                element._align_shared_x_spines()
+        for child in self._children.values():
+            if not child._flatten_in_parent:
+                child._align_shared_x_spines()
 
         tolerance = 0.3  # allowed difference between axes to consider them to be in the same column
         if self._share_x and self._num_rows > 1:
@@ -2236,9 +2688,9 @@ class SmartFigure:
             ]
 
         if x_label is not None:
-            ax.set_xlabel(x_label, labelpad=x_pad)
+            ax.set_xlabel(x_label, labelpad=x_pad, color=self._x_axis_label_color)
         if y_label is not None:
-            ax.set_ylabel(y_label, labelpad=y_pad)
+            ax.set_ylabel(y_label, labelpad=y_pad, color=self._y_axis_label_color)
 
     def _create_reference_label(
         self,
@@ -2261,7 +2713,7 @@ class SmartFigure:
             "format", lambda le: f"{le})"
         )(letter)
         reflabel_params = {
-            k: v for k, v in self._reference_labels_params.items() if v != "default"
+            k: v for k, v in self._reference_labels_params.items() if v != INHERIT
         }
         target.text(
             x=0,
@@ -2395,11 +2847,7 @@ class SmartFigure:
         for try_i in range(2):
             try:
                 for property_, value in vars(element).items():
-                    if (
-                        (type(value) is str)
-                        and (value == "default")
-                        and not (property_ == "_figure_style")
-                    ):
+                    if is_inherit(value) and not (property_ == "_figure_style"):
                         params_to_reset.append(property_)
                         default_value = self._default_params[object_type][property_]
                         setattr(element, property_, default_value)
@@ -2431,7 +2879,7 @@ class SmartFigure:
         method.
         """
         for param in params_to_reset:
-            setattr(element, param, "default")
+            setattr(element, param, INHERIT)
 
     def _fill_in_rc_params(self, is_matplotlib_style: bool = False) -> None:
         """
@@ -2494,7 +2942,8 @@ class SmartFigure:
         figure_face_color: str | None = None,
         axes_face_color: str | None = None,
         axes_edge_color: str | None = None,
-        axes_label_color: str | None = None,
+        x_axis_label_color: str | None = None,
+        y_axis_label_color: str | None = None,
         axes_label_pad: float | None = None,
         axes_line_width: float | None = None,
         color_cycle: list[str] | None = None,
@@ -2530,12 +2979,16 @@ class SmartFigure:
             The color of the axes face.
         axes_edge_color : str, optional
             The color of the axes edge.
-        axes_label_color : str, optional
-            The color of the axes labels.
+        x_axis_label_color : str, optional
+            The color of the x axis label.
+        y_axis_label_color : str, optional
+            The color of the y axis label.
         axes_label_pad : float, optional
             The padding between the axes labels and the axes.
+            Typical range is ``2`` to ``12``.
         axes_line_width : float, optional
             The width of the axes lines.
+            Typical range is ``0.5`` to ``3``.
         color_cycle : list[str], optional
             A list of colors to use for the color cycle.
         legend_face_color : str, optional
@@ -2544,20 +2997,29 @@ class SmartFigure:
             The color of the legend edge.
         legend_font_size : float, optional
             The font size of the legend.
+            Typical range is ``8`` to ``20``.
         legend_handle_length : float, optional
             The length of the legend handles.
+            Typical range is ``1`` to ``4``.
         legend_handle_text_pad : float, optional
             The padding between the legend handles and the legend text.
+            Typical range is ``0.2`` to ``1.5``.
         font_family : str, optional
             The font family to use.
         font_size : float, optional
             The font size to use.
+            Typical range is ``8`` to ``20``.
         font_weight : str, optional
             The font weight to use.
+            Values include ``"normal"``, ``"bold"``, ``"light"``, ``"ultralight"``, ``"heavy"``, and
+            ``"black"``.
         title_font_size : float, optional
             The font size of the title.
+            Typical range is ``10`` to ``24``.
         title_font_weight : str, optional
             The font weight of the title.
+            Values include ``"normal"``, ``"bold"``, ``"light"``, ``"ultralight"``, ``"heavy"``, and
+            ``"black"``.
         text_color : str, optional
             The color of the text.
         use_latex : bool, optional
@@ -2565,11 +3027,18 @@ class SmartFigure:
         hidden_spines : Iterable[Literal["right", "left", "top", "bottom"]], optional
             The spines to hide. If specified, the corresponding spines will be hidden in the figure. This corresponds to
             the lines that form the borders of the plot.
+            Values are ``"right"``, ``"left"``, ``"top"``, and ``"bottom"``.
 
         Returns
         -------
         Self
             For convenience, the same SmartFigure with the updated visual parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         if color_cycle is not None:
             color_cycle = plt.cycler(color=color_cycle)
@@ -2578,7 +3047,6 @@ class SmartFigure:
             "figure.facecolor": figure_face_color,
             "axes.facecolor": axes_face_color,
             "axes.edgecolor": axes_edge_color,
-            "axes.labelcolor": axes_label_color,
             "axes.labelpad": axes_label_pad,
             "axes.linewidth": axes_line_width,
             "axes.prop_cycle": color_cycle,
@@ -2615,6 +3083,11 @@ class SmartFigure:
                         f"Invalid spine name: {spine}. Must be one of 'right', 'left', 'top' or 'bottom'."
                     )
             self._hidden_spines = hidden_spines
+
+        if x_axis_label_color is not None:
+            self._x_axis_label_color = x_axis_label_color
+        if y_axis_label_color is not None:
+            self._y_axis_label_color = y_axis_label_color
 
         return self
 
@@ -2787,14 +3260,18 @@ class SmartFigure:
             The direction of the ticks.
         length : float, optional
             The length of the ticks.
+            Typical range is ``2`` to ``10``.
         width : float, optional
             The width of the ticks.
+            Typical range is ``0.5`` to ``3``.
         color : str, optional
             The color of the ticks.
         pad : float, optional
             The padding to add between the tick labels and the ticks themselves.
+            Typical range is ``2`` to ``10``.
         label_size : float | str, optional
             The font size of the tick labels. This can be a float or a string (e.g. "large").
+            Typical range is ``8`` to ``20`` when a float is used.
         label_color : str, optional
             The color of the tick labels.
         label_rotation : float, optional
@@ -2808,6 +3285,12 @@ class SmartFigure:
         -------
         Self
             For convenience, the same SmartFigure with the updated tick parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         new_tick_params = {
             "direction": direction,
@@ -2843,10 +3326,10 @@ class SmartFigure:
         visible_y: bool = True,
         which_x: Literal["major", "minor", "both"] = "both",
         which_y: Literal["major", "minor", "both"] = "both",
-        color: str | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
-        line_style: str | Literal["default"] = "default",
-        line_width: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
     ) -> Self:
         """
         Sets the grid parameters for the figure.
@@ -2869,27 +3352,37 @@ class SmartFigure:
             Default depends on the ``figure_style`` configuration.
         alpha : float, optional
             Sets the alpha value for the grid lines.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         line_style : str, optional
             Sets the line style of the grid lines.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         line_width : float, optional
             Sets the line width of the grid lines.
+            Typical range is ``0.5`` to ``3``.
             Default depends on the ``figure_style`` configuration.
 
         Returns
         -------
         Self
             For convenience, the same SmartFigure with the updated grid parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         if reset:
             self._grid.clear()
             self._user_rc_dict.update(
                 {
-                    "grid.color": "default",
-                    "grid.alpha": "default",
-                    "grid.linestyle": "default",
-                    "grid.linewidth": "default",
+                    "grid.color": Inherit,
+                    "grid.alpha": Inherit,
+                    "grid.linestyle": Inherit,
+                    "grid.linewidth": Inherit,
                 }
             )
 
@@ -2906,7 +3399,7 @@ class SmartFigure:
             "grid.linestyle": line_style,
             "grid.linewidth": line_width,
         }
-        rc_params_dict = {k: v for k, v in rc_params_dict.items() if v != "default"}
+        rc_params_dict = {k: v for k, v in rc_params_dict.items() if v != INHERIT}
         self.set_rc_params(rc_params_dict)
         return self
 
@@ -2918,7 +3411,7 @@ class SmartFigure:
         """
         Sets a custom legend for the figure. If the SmartFigure contains multiple subplots, **custom legends only**
         **work if the ``general_legend`` parameter is set to ``True``**. Otherwise, custom legends can be added for
-        non-general legends if the SmartFigure is a single subplot (see the
+        non-general legends if the SmartFigure is currently used as a single plot (see the
         :attr:`~graphinglib.SmartFigure.is_single_subplot` property).
 
         .. note::
@@ -3024,10 +3517,10 @@ class SmartFigure:
     def set_reference_labels_params(
         self,
         reset: bool = False,
-        color: str | Literal["default"] | None = None,
+        color: str | Inherit | None = None,
         start_index: int | None = None,
-        font_size: float | Literal["default"] | None = None,
-        font_weight: str | Literal["default"] | None = None,
+        font_size: float | Inherit | None = None,
+        font_weight: str | Inherit | None = None,
         format: Callable = None,
     ) -> Self:
         """
@@ -3039,16 +3532,19 @@ class SmartFigure:
             If ``True``, resets all previously set reference label parameters to their default values before applying
             the new parameters.
             Defaults to ``False``.
-        color : str | Literal["default"], optional
+        color : str | Inherit, optional
             The color of the reference labels. If ``"default"``, the color is set according to the text color of other
             text in the figure.
         start_index : int, optional
             Starting index for the reference labels. This allows to customize the starting label, for example, to start
             labeling from "b)" instead of "a)" by giving ``start_index = 1``.
-        font_size : float | Literal["default"], optional
+        font_size : float | Inherit, optional
             The font size of the reference labels.
-        font_weight : str | Literal["default"], optional
+            Typical range is ``8`` to ``20``.
+        font_weight : str | Inherit, optional
             The font weight of the reference labels.
+            Values include ``"normal"``, ``"bold"``, ``"light"``, ``"ultralight"``, ``"heavy"``, and
+            ``"black"``.
         format : Callable, optional
             A callable function to format the reference labels. By default, the reference labels are formatted as a),
             b), etc. The function must take a single str argument (the letter) and return a formatted str. For example,
@@ -3060,6 +3556,12 @@ class SmartFigure:
         -------
         Self
             For convenience, the same SmartFigure with the updated reference labels parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         if start_index is not None:
             if not isinstance(start_index, int):
@@ -3093,11 +3595,13 @@ class SmartFigure:
         log_scale: bool = False,
         remove_axes: bool = False,
         remove_ticks: bool = False,
-        elements: Iterable[Plottable | None] = [],
+        elements: Plottable | Iterable[Plottable | None] = [],
     ) -> SmartTwinAxis:
         """
         Creates a twin axis for the SmartFigure. This method creates a :class:`~graphinglib.SmartTwinAxis` object that
         can be used to plot elements on a secondary axis in the same subplot.
+
+        Twin axes can only be created for SmartFigures that currently render as a single plot.
 
         Parameters
         ----------
@@ -3117,9 +3621,9 @@ class SmartFigure:
         remove_ticks : bool, optional
             Whether to remove the ticks from the twin axis.
             Defaults to ``False``.
-        elements : Iterable[Plottable | None], optional
-            Elements to plot in the twin axis. This must be an iterable of
-            :class:`~graphinglib.Plottable` objects. If ``None`` elements are present, they are ignored.
+        elements : Plottable | Iterable[Plottable | None], optional
+            Elements to plot in the twin axis. A single :class:`~graphinglib.Plottable` is accepted and is treated as
+            a one-element list. If an iterable is provided, any ``None`` elements are ignored.
             Defaults to empty list.
 
         Returns
@@ -3165,16 +3669,19 @@ class SmartFigureWCS(SmartFigure):
 
     It allows for the creation of complex figures recursively, where each :class:`~graphinglib.SmartFigure` can contain
     other :class:`~graphinglib.SmartFigure` objects. The class supports a variety of customization options as well as
-    the ability to use styles and themes for consistent visual appearance across different figures. The idea behind this
-    class is that every SmartFigure contains a single x_label, y_label, title, projection, etc. and that nested
-    SmartFigures can be inserted into the main SmartFigure to create complex figures with more parameters.
+    the ability to use styles and themes for consistent visual appearance across different figures. A
+    :class:`~graphinglib.SmartFigureWCS` follows the same general behavior as :class:`~graphinglib.SmartFigure`, but
+    uses WCS projections for the plots it draws. The idea behind this class is that every SmartFigure contains a single
+    x_label, y_label, title, projection, etc. and that nested SmartFigures can be inserted into the main SmartFigure
+    to create complex figures with more parameters.
 
     Parameters
     ----------
     projection : WCS | list[WCS]
         The `World Coordinate System (WCS) <https://docs.astropy.org/en/stable/wcs/index.html>`_ object to use for the
         figure. This is used to plot data in a coordinate system that is not Cartesian, such as celestial coordinates.
-        This can be given as a single WCS object or a list of WCS objects to apply to each subplot.
+        This can be given as a single WCS object or a list of WCS objects to apply to each subfigure drawn by the
+        SmartFigure.
     num_rows, num_cols : int, optional
         Number of rows and columns for the base grid. These parameters determine the number of "squares" on which the
         plots can be placed.
@@ -3184,6 +3691,7 @@ class SmartFigureWCS(SmartFigure):
     size : tuple[float, float], optional
         Overall size of the figure. Note that this option is useless if the SmartFigure is nested inside another
         SmartFigure, as the size is then determined by the parent SmartFigure and the available space.
+        Figure size is in inches; typical width is ``4`` to ``12`` and typical height is ``3`` to ``8``.
         Default depends on the ``figure_style`` configuration.
     title : str, optional
         General title of the figure.
@@ -3194,13 +3702,14 @@ class SmartFigureWCS(SmartFigure):
         Labels for the x and y axes of each subfigure, respectively. This is only useful for figures that are not a
         single subplot and when each subfigure needs its own x and y labels. This prevents the creation of nested
         :class:`~graphinglib.SmartFigure` objects for each subfigure only to set the x and y labels. This list cannot
-        be longer than the number of non-empty subplots and None values can be used to skip specific subplots.
+        be longer than the number of subfigures drawn by the SmartFigure and None values can be used to skip specific
+        subfigures.
     subtitles : Iterable[str], optional
         Labels for the subtitles of each subfigure, respectively. Similarly to `sub_x_labels` and `sub_y_labels`, this
         allows to set subtitles for each subfigure without needing to create nested
         :class:`~graphinglib.SmartFigure` objects. It is only useful for figures that are not a single subplot and when
-        each subfigure needs its own subtitle. This list cannot be longer than the number of non-empty subplots and None
-        values can be used to skip specific subplots.
+        each subfigure needs its own subtitle. This list cannot be longer than the number of subfigures drawn by the
+        SmartFigure and None values can be used to skip specific subfigures.
     log_scale_x, log_scale_y : bool | list[bool], optional
         Whether to use a logarithmic scale for the x and y axes, respectively. This can be given as a single value or
         a list of values to apply to each subplot.
@@ -3214,7 +3723,7 @@ class SmartFigureWCS(SmartFigure):
         space. If set to "equal", the aspect ratio is set to 1:1. If set to a float, the aspect ratio represents the
         ratio of the height to the width of the data. This can be given as a single value or a list of values to apply
         to each subplot.
-        Defaults to "auto".
+        Values are ``"equal"``, ``"auto"``, or a positive float. Defaults to ``"auto"``.
 
         .. warning::
             This parameter must not be confused with the `box_aspect_ratio` parameter, which is the aspect ratio of the
@@ -3260,7 +3769,7 @@ class SmartFigureWCS(SmartFigure):
             of the axes, which may lead to overlapping between axes. Consider modifying the `size` or `width_padding`
             parameters to avoid this issue.
     reference_labels_loc : Literal["inside", "outside"] | tuple[float, float] | list, optional
-        Location of the reference labels of the SubFigures, which can be either "inside", "outside" or a tuple of
+        Location of the reference labels of the SubFigures, which can be either ``"inside"``, ``"outside"``, or a tuple of
         (x, y) relative coordinates to the top-left corner of each subfigure. This can be given as a single value or a
         list of values to apply to each subplot.
         Defaults to ``"outside"``.
@@ -3278,9 +3787,8 @@ class SmartFigureWCS(SmartFigure):
         subfigures.
 
         .. note::
-            Sharing axes only works for plots directly inside the SmartFigure. If a nested SmartFigure is used, the
-            axes sharing will not be applied to the nested SmartFigure. Instead, the nested SmartFigure will have its
-            own axes sharing settings.
+            Sharing axes only works for plots drawn directly in the SmartFigure. If you insert an existing nested
+            SmartFigure, that nested figure keeps its own axes sharing settings.
 
     general_legend : bool, optional
         Whether to create a general legend for the entire figure. If set to ``True``, a single legend will be created
@@ -3321,20 +3829,24 @@ class SmartFigureWCS(SmartFigure):
     figure_style : str, optional
         The figure style to use for the figure. The default style can be set using ``gl.set_default_style()``.
         Defaults to ``"default"``.
-    elements : Iterable[Plottable | SmartFigure] | Iterable[Iterable[Plottable | SmartFigure]], optional
+    elements : Plottable | Iterable[Plottable | SmartFigure] | Iterable[Iterable[Plottable | SmartFigure]], optional
         The elements to plot in the figure.
-        If an iterable of depth 1 is provided and the figure is 1x1, all the elements are added to the unique plot. For
-        other geometries, the elements are added one by one in the order they are provided to each subplot, and the
-        iterable should not be longer than the number of subplots.
-        If an iterable of depth 2 is provided, each sub-iterable is added to the corresponding subplot, in the order
-        they are provided. The number of sub-iterables should be equal to the number of subplots.
-        If ``None`` elements are present in the iterable, the corresponding subplots are not drawn and a blank space is
-        left in the figure. If iterables containing only ``None`` are given in the main iterable, the corresponding
-        subplots are drawn but empty.
+        If a single :class:`~graphinglib.Plottable` is provided, it is added as the only element in the SmartFigure's
+        single plot. If an iterable of :class:`~graphinglib.Plottable` objects is provided, all the elements are added
+        to the SmartFigure's single plot.
+        If a flat iterable is provided for a figure with multiple cells, the items are assigned to the cells from
+        left-to-right, top-to-bottom. Each item can be a child :class:`~graphinglib.SmartFigure`, a
+        :class:`~graphinglib.Plottable`, an iterable of :class:`~graphinglib.Plottable` objects, or ``None``.
+        Plottables and iterables of Plottables create a child plot in that cell. The iterable can be shorter than the
+        total number of cells, in which case the remaining cells are left empty.
+        If a :class:`~graphinglib.SmartFigure` is provided, it occupies exactly one cell in the parent figure. Its
+        ``num_rows`` and ``num_cols`` only describe its internal layout.
 
         .. note::
-            This method for adding elements only allows to add elements to single subplots. If you want to add elements
-            that span multiple subplots, you should use the __setitem__ method instead.
+            The ``elements`` parameter does not use a child :class:`~graphinglib.SmartFigure`'s shape to determine how
+            much space it occupies in the parent. If you want a bare :class:`~graphinglib.Plottable`, an iterable of
+            Plottables, or a child :class:`~graphinglib.SmartFigure` to span multiple subplots in the parent, you
+            should use the __setitem__ method instead.
             For example, to add an element spanning the complete first row , use ``fig[0,:] = element``.
 
     annotations : Iterable[Text], optional
@@ -3350,7 +3862,7 @@ class SmartFigureWCS(SmartFigure):
         num_cols: int = 1,
         x_label: str | None = None,
         y_label: str | None = None,
-        size: tuple[float, float] | Literal["default"] = "default",
+        size: tuple[float, float] | Inherit = INHERIT,
         title: str | None = None,
         x_lim: ListOrItem[tuple[float, float] | None] = None,
         y_lim: ListOrItem[tuple[float, float] | None] = None,
@@ -3383,8 +3895,9 @@ class SmartFigureWCS(SmartFigure):
         show_legend: ListOrItem[bool] = True,
         twin_x_axis: SmartTwinAxis | None = None,
         twin_y_axis: SmartTwinAxis | None = None,
-        figure_style: str = "default",
-        elements: Iterable[Plottable | SmartFigure | None]
+        figure_style: str | Inherit = INHERIT,
+        elements: Plottable
+        | Iterable[Plottable | SmartFigure | None]
         | Iterable[Iterable[Plottable | None]] = [],
         annotations: Iterable[Text] | None = None,
     ) -> None:
@@ -3452,6 +3965,8 @@ class SmartFigureWCS(SmartFigure):
                     "The projection of a SmartFigureWCS must be a WCS object."
                 )
         self._projection = value
+        if hasattr(self, "_children"):
+            self._sync_auto_child_projections()
 
     def _prepare_figure(
         self,
@@ -3459,12 +3974,13 @@ class SmartFigureWCS(SmartFigure):
         make_legend: bool = True,
     ) -> dict[str, dict[str, list[str | Any]]]:
         """
-        Wraps the parent method to check if the number of projections matches the number of non-empty subplots.
+        Wraps the parent method to check if the number of projections matches the number of subfigures drawn by the
+        SmartFigure.
         """
         if isinstance(self._projection, list) and len(self._projection) != len(self):
             raise GraphingException(
-                f"Number of WCS projections ({len(self._projection)}) must be equal to the number of non-empty "
-                f"subplots ({len(self)})."
+                f"Number of WCS projections ({len(self._projection)}) must be equal to the number of subfigures "
+                f"({len(self)})."
             )
         return super()._prepare_figure(is_matplotlib_style, make_legend)
 
@@ -3734,17 +4250,22 @@ class SmartFigureWCS(SmartFigure):
                 <https://docs.astropy.org/en/stable/api/astropy.visualization.wcsaxes.WCSAxes.html>`_.
         length : float, optional
             The length of the ticks.
+            Typical range is ``2`` to ``10``.
         minor_length : float, optional
             The length of the minor ticks. This is the only parameter that can be set independently from the major ticks
             due to the way the :class:`astropy.visualization.wcsaxes.WCSAxes` are implemented.
+            Typical range is ``1`` to ``6``.
         width : float, optional
             The width of the ticks.
+            Typical range is ``0.5`` to ``3``.
         color : str, optional
             The color of the ticks.
         pad : float, optional
             The padding to add between the tick labels and the ticks themselves.
+            Typical range is ``2`` to ``10``.
         label_size : float | str, optional
             The font size of the tick labels. This can be a float or a string (e.g. "large").
+            Typical range is ``8`` to ``20`` when a float is used.
         label_color : str, optional
             The color of the tick labels.
         label_rotation : float, optional
@@ -3758,6 +4279,12 @@ class SmartFigureWCS(SmartFigure):
         -------
         Self
             For convenience, the same SmartFigure with the updated tick parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         new_tick_params = {
             "direction": direction,
@@ -3796,10 +4323,10 @@ class SmartFigureWCS(SmartFigure):
         self,
         visible_x: bool = True,
         visible_y: bool = True,
-        color: str | Literal["default"] = "default",
-        alpha: float | Literal["default"] = "default",
-        line_style: str | Literal["default"] = "default",
-        line_width: float | Literal["default"] = "default",
+        color: str | Inherit = INHERIT,
+        alpha: float | Inherit = INHERIT,
+        line_style: str | Inherit = INHERIT,
+        line_width: float | Inherit = INHERIT,
     ) -> Self:
         """
         Sets the grid parameters for the figure.
@@ -3820,18 +4347,28 @@ class SmartFigureWCS(SmartFigure):
             Default depends on the ``figure_style`` configuration.
         alpha : float, optional
             Sets the alpha value for the grid lines.
+            Range is ``0`` (transparent) to ``1`` (opaque).
             Default depends on the ``figure_style`` configuration.
         line_style : str, optional
             Sets the line style of the grid lines.
+            Values include ``"-"``, ``"--"``, ``"-."``, ``":"``, ``"solid"``, ``"dashed"``, ``"dashdot"``, and
+            ``"dotted"``.
             Default depends on the ``figure_style`` configuration.
         line_width : float, optional
             Sets the line width of the grid lines.
+            Typical range is ``0.5`` to ``3``.
             Default depends on the ``figure_style`` configuration.
 
         Returns
         -------
         Self
             For convenience, the same SmartFigure with the updated grid parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         return super().set_grid(
             visible_x=visible_x,
@@ -3872,9 +4409,10 @@ class SmartTwinAxis:
     invert_axis : bool, optional
         Whether to invert the twin axis.
         Defaults to ``False``.
-    elements : Iterable[Plottable | None], optional
-        Elements to plot in the twin axis. This must be an iterable of :class:`~graphinglib.Plottable` objects. If
-        ``None`` values are present, they are ignored.
+    elements : Plottable | Iterable[Plottable | None], optional
+        Elements to plot in the twin axis. A single :class:`~graphinglib.Plottable` is accepted and is treated as a
+        one-element list. If an iterable is provided, any ``None`` values are ignored. See the ``elements`` parameter of the
+        :class:`~graphinglib.SmartFigure` class for more details.
     """
 
     def __init__(
@@ -3885,7 +4423,7 @@ class SmartTwinAxis:
         remove_axes: bool = False,
         remove_ticks: bool = False,
         invert_axis: bool = False,
-        elements: Iterable[Plottable | None] = [],
+        elements: Plottable | Iterable[Plottable | None] = [],
     ) -> None:
         self.label = label
         self.axis_lim = axis_lim
@@ -3971,12 +4509,11 @@ class SmartTwinAxis:
         return self._elements
 
     @elements.setter
-    def elements(self, value: Iterable[Plottable | None]) -> None:
-        """
-        Sets the elements of the SmartTwinAxis with the same rules as the constructor. For adding elements instead of
-        replacing them, use the :meth:`~graphinglib.SmartTwinAxis.add_elements` method.
-        """
+    def elements(self, value: Plottable | Iterable[Plottable | None]) -> None:
         self._elements = []  # systematically reset the elements when setting them with the property
+        if isinstance(value, Plottable):
+            self.add_elements(value)
+            return
         self.add_elements(*value)
 
     def __len__(self) -> int:
@@ -4071,7 +4608,7 @@ class SmartTwinAxis:
         cycle_colors: list[str],
         is_y: bool,
         z_order: int,
-        figure_style: str,
+        figure_style: str | Inherit,
     ) -> tuple[list[str], list[Any]]:
         """
         Prepares the twin axis to be displayed.
@@ -4089,7 +4626,7 @@ class SmartTwinAxis:
         z_order : int
             The z-order for the elements plotted on the twin axis. This is used to ensure that the elements on the twin
             axis are drawn above the elements of the original axis.
-        figure_style : str
+        figure_style : str | Inherit
             The figure style to use for the twin axis. This is used for the
             :meth:`~graphinglib.SmartTwinAxis._fill_in_missing_params` method.
 
@@ -4249,7 +4786,7 @@ class SmartTwinAxis:
             )
 
     def _fill_in_missing_params(
-        self, element: SmartFigure | Plottable, figure_style: str
+        self, element: SmartFigure | Plottable, figure_style: str | Inherit
     ) -> list[str]:
         """
         Fills in the missing parameters for a :class:`~graphinglib.Plottable` from the parent's ``figure_style``.
@@ -4259,11 +4796,7 @@ class SmartTwinAxis:
         for try_i in range(2):
             try:
                 for property_, value in vars(element).items():
-                    if (
-                        (type(value) is str)
-                        and (value == "default")
-                        and not (property_ == "_figure_style")
-                    ):
+                    if is_inherit(value) and not (property_ == "_figure_style"):
                         params_to_reset.append(property_)
                         default_value = self._default_params[object_type][property_]
                         setattr(element, property_, default_value)
@@ -4295,7 +4828,7 @@ class SmartTwinAxis:
         method.
         """
         for param in params_to_reset:
-            setattr(element, param, "default")
+            setattr(element, param, INHERIT)
 
     def set_rc_params(
         self,
@@ -4359,14 +4892,19 @@ class SmartTwinAxis:
             The color of the label.
         label_pad : float, optional
             The padding between the axis and the label.
+            Typical range is ``2`` to ``12``.
         line_width : float, optional
             The width of the spine.
+            Typical range is ``0.5`` to ``3``.
         font_family : str, optional
             The font family to use.
         font_size : float, optional
             The font size to use.
+            Typical range is ``8`` to ``20``.
         font_weight : str, optional
             The font weight to use.
+            Values include ``"normal"``, ``"bold"``, ``"light"``, ``"ultralight"``, ``"heavy"``, and
+            ``"black"``.
         use_latex : bool, optional
             Whether or not to use latex.
         hide_spine : bool, optional
@@ -4376,6 +4914,12 @@ class SmartTwinAxis:
         -------
         Self
             For convenience, the same SmartTwinAxis with the updated visual parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         rc_params_dict = {
             "axes.labelcolor": label_color,
@@ -4530,14 +5074,18 @@ class SmartTwinAxis:
             The direction of the ticks.
         length : float, optional
             The length of the ticks.
+            Typical range is ``2`` to ``10``.
         width : float, optional
             The width of the ticks.
+            Typical range is ``0.5`` to ``3``.
         color : str, optional
             The color of the ticks.
         pad : float, optional
             The padding to add between the tick labels and the ticks themselves.
+            Typical range is ``2`` to ``10``.
         label_size : float | str, optional
             The font size of the tick labels. This can be a float or a string (e.g. "large").
+            Typical range is ``8`` to ``20`` when a float is used.
         label_color : str, optional
             The color of the tick labels.
         label_rotation : float, optional
@@ -4551,6 +5099,12 @@ class SmartTwinAxis:
         -------
         Self
             For convenience, the same SmartFigure with the updated tick parameters.
+
+        Notes
+        -----
+        Color parameters accept Matplotlib color formats: named colors (``"blue"``), short color strings
+        (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
+        values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
         new_tick_params = {
             "direction": direction,
