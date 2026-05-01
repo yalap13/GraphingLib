@@ -1,4 +1,3 @@
-from executing.executing import cache
 import json
 from collections import defaultdict
 from glob import glob
@@ -135,10 +134,14 @@ def update_github_cache(pr_dict, contrib_set, cache_path):
     else:
         in_dict = load_github_cache(cache_path)
         if current_ver not in in_dict.keys():
-            in_dict.update({current_ver: {"prs": pr_dict, "contrib_set": list(contrib_set)}})
+            in_dict.update(
+                {current_ver: {"prs": pr_dict, "contrib_set": list(contrib_set)}}
+            )
             out_dict = in_dict
         else:
-            in_dict[current_ver].update({"prs": pr_dict, "contrib_set": list(contrib_set)})
+            in_dict[current_ver].update(
+                {"prs": pr_dict, "contrib_set": list(contrib_set)}
+            )
             out_dict = in_dict
     with open(cache_path, "w") as file:
         json.dump(out_dict, file)
@@ -247,7 +250,10 @@ def main(app):
     else:
         print("Github: No update needed")
         cache_current_ver = load_github_cache(cache_path)[__version__.rstrip(".dev")]
-        pr_dict, contrib_set = cache_current_ver["prs"], set(cache_current_ver["contrib_set"])
+        pr_dict, contrib_set = (
+            cache_current_ver["prs"],
+            set(cache_current_ver["contrib_set"]),
+        )
 
     output += (
         "Contributors\n------------\n\n"

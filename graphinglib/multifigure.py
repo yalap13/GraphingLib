@@ -3,7 +3,7 @@ from .inherit import INHERIT, Inherit, is_inherit
 from copy import deepcopy
 from shutil import which
 from string import ascii_lowercase
-from typing import Literal, Optional
+from typing import Optional
 from typing_extensions import deprecated
 
 import matplotlib.pyplot as plt
