@@ -69,10 +69,12 @@ Here are the step to make a major or minor release.
    * Rebuild the documentation to make sure it builds without problems.
 
 4. Draft a release on GitHub by clicking on the "Draft a new release" button in the Releases section. For the tag, create a new ``vX.Y.0`` tag, and for the target, choose the ``maintenance/X.Y.x`` branch. Title should be ``GraphingLib X.Y.0 Release`` Copy the release notes from the documentation and adapt the syntax for Markdown.
-5. Merge the ``maintenance/X.Y.x`` branch back into ``main``, without deleting the maintenance branch. Then, on ``main``::
+5. Merge the ``maintenance/X.Y.x`` branch back into ``main``, without deleting the maintenance branch. Then, on ``main``:
+
    * In ``pyproject.toml`` and ``setup.py``, bump the version to the next minor version, ``X.Y+1.0``, or to ``X+1.0.0`` for a major version bump.
    * In ``graphinglib/_version.py``, bump ``__version__`` to ``X.Y+1.0.dev``.
    * Run ``uv lock`` to update the lock file with the new version.
+
 6. Create a new ``doc/X.Y.0`` branch from the ``maintenance/X.Y.x`` branch. In the new doc branch, change GraphingLib's source URL in ``docs/requirements.txt`` to ``git+https://github.com/GraphingLib/GraphingLib@doc/X.Y.0``.
 7. Manually trigger a build of the "latest" version on *Read the Docs* to update the project. Activate the version ``doc/X.Y.0`` and make it the default version in the admin settings.
 8. And finally, in the ``maintenance/X.Y.x`` branch, bump ``__version__`` to ``X.Y.1`` in ``_version.py``.
