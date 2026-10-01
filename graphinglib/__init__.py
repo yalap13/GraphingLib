@@ -41,8 +41,21 @@ from .fits import (
     FitFromSine,
     FitFromSquareRoot,
 )
-from .graph_elements import (
+from .exceptions import (
     GraphingException,
+    GraphingLibError,
+    IncompatibleArgumentsError,
+    InvalidOperationError,
+    InvalidParameterError,
+    InvalidParameterTypeError,
+    LayoutError,
+    MissingOptionalDependencyError,
+    PlottingError,
+    StyleFileError,
+    StyleNotFoundError,
+    UnsupportedFeatureError,
+)
+from .graph_elements import (
     Hlines,
     Plottable,
     PlottableAxMethod,
@@ -52,8 +65,10 @@ from .graph_elements import (
     Vlines,
 )
 from .legend_artists import LegendElement, LegendLine, LegendMarker, LegendPatch
-from .inherit import INHERIT, Inherit
-from .multifigure import MultiFigure
+from .inherit import INHERIT, Inherit, Styled, is_inherit
+
+# MultiFigure is deprecated but intentionally re-exported for backward compatibility.
+from .multifigure import MultiFigure  # ty: ignore[deprecated]
 from .shapes import Arrow, Circle, Ellipse, Line, Polygon, Rectangle
 from .smart_figure import SmartFigure, SmartFigureWCS, SmartTwinAxis
 from .tools import MathematicalObject
@@ -84,6 +99,17 @@ __all__ = [
     "FitFromSine",
     "FitFromSquareRoot",
     "GraphingException",
+    "GraphingLibError",
+    "InvalidParameterError",
+    "InvalidParameterTypeError",
+    "IncompatibleArgumentsError",
+    "InvalidOperationError",
+    "LayoutError",
+    "StyleNotFoundError",
+    "StyleFileError",
+    "MissingOptionalDependencyError",
+    "UnsupportedFeatureError",
+    "PlottingError",
     "Hlines",
     "Plottable",
     "PlottableAxMethod",
@@ -97,6 +123,8 @@ __all__ = [
     "LegendPatch",
     "INHERIT",
     "Inherit",
+    "Styled",
+    "is_inherit",
     "MultiFigure",
     "Arrow",
     "Circle",

@@ -9,7 +9,20 @@ except ImportError:
 
 from matplotlib.colors import to_rgba_array
 
+from .exceptions import MissingOptionalDependencyError
+
 T = TypeVar("T")
+
+
+def _require_optional_dependency(
+    available: bool, feature: str, extra: str, package: str
+) -> None:
+    """Raise a clear error when a feature gated behind an optional extra is used without it installed."""
+    if not available:
+        raise MissingOptionalDependencyError(
+            f"{feature} requires the optional `graphinglib[{extra}]` extra (installs {package}). "
+            f"Install it with `pip install graphinglib[{extra}]`."
+        )
 
 
 def _copy_with_overrides(instance: T, **kwargs: Any) -> T:
@@ -137,9 +150,9 @@ def get_contrasting_shade(color: str | tuple[int, int, int]) -> str:
         Shade (black/white) that contrasts the most with the given color.
     """
     if isinstance(color, str):
-        color = to_rgba_array(color)[0, :3] * 255
-
-    R, G, B = color
+        R, G, B = [float(channel) for channel in to_rgba_array(color)[0, :3] * 255]
+    else:
+        R, G, B = color
 
     if R <= 10:
         Rg = R / 3294

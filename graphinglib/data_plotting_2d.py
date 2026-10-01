@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from .inherit import INHERIT, Inherit, is_inherit
-
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Callable, Optional, Protocol, runtime_checkable
@@ -13,12 +11,30 @@ from matplotlib.image import imread
 from numpy.typing import ArrayLike
 from scipy.interpolate import griddata
 
+from .exceptions import InvalidParameterError, PlottingError
 from .graph_elements import Plottable
+from .inherit import INHERIT, Inherit, Styled, is_inherit, resolve_or, strip_inherit
+from .tools import _require_optional_dependency
 
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
+
+try:  # Optional dependency: pypdfium2
+    import pypdfium2 as pdfium
+
+    _PYPDFIUM2_AVAILABLE = True
+except ImportError:
+    _PYPDFIUM2_AVAILABLE = False
+
+
+def _require_pypdfium2(feature: str = "this feature") -> None:
+    """Raise a clear error when a pdf-extra feature is used without the optional dependency installed."""
+    _require_optional_dependency(_PYPDFIUM2_AVAILABLE, feature, "pdf", "pypdfium2")
+
+
+HAS_PYPDFIUM2 = _PYPDFIUM2_AVAILABLE
 
 
 @runtime_checkable
@@ -41,8 +57,10 @@ class Heatmap(Plottable2D):
         Image to display. If an array of values is given, the 2D array will be interpreted as the values of the image.
         If a str if given, the corresponding file will be read as an image.
     x_axis_range, y_axis_range : tuple[float, float], optional
-        The range of x and y values used for the axes as tuples containing the start and end of the range. These values
-        are ignored when ``x_mesh`` and ``y_mesh`` are provided.
+        The range of x and y values used for the axes as tuples containing the start and end of the range. These
+        values are ignored when ``x_mesh`` and ``y_mesh`` are provided. ``x_axis_range`` and ``y_axis_range`` can be
+        set independently of one another; the axis left unset defaults to pixel-index coordinates based on the shape
+        of ``image``.
     x_mesh, y_mesh : ArrayLike, optional
         Mesh grids defining the coordinates of the heatmap values. When provided, the heatmap is plotted using
         ``pcolormesh`` instead of ``imshow``.
@@ -111,7 +129,9 @@ class Heatmap(Plottable2D):
             image. If a str if given, the corresponding file will be read as an image.
         x_axis_range, y_axis_range : tuple[float, float], optional
             The range of x and y values used for the axes as tuples containing the start and end of the range. These
-            values are ignored when ``x_mesh`` and ``y_mesh`` are provided.
+            values are ignored when ``x_mesh`` and ``y_mesh`` are provided. ``x_axis_range`` and ``y_axis_range`` can
+            be set independently of one another; the axis left unset defaults to pixel-index coordinates based on
+            the shape of ``image``.
         x_mesh, y_mesh : ArrayLike, optional
             Mesh grids defining the coordinates of the heatmap values. When provided, the heatmap is plotted using
             ``pcolormesh`` instead of ``imshow``.
@@ -334,13 +354,19 @@ class Heatmap(Plottable2D):
         x = np.linspace(x_axis_range[0], x_axis_range[1], number_of_points[0])
         y = np.linspace(y_axis_range[0], y_axis_range[1], number_of_points[1])
         x_grid, y_grid = np.meshgrid(x, y)
-        grid = griddata(
-            points,
-            values,
-            (x_grid, y_grid),
-            method=grid_interpolation,
-            fill_value=fill_value,
-        )
+        try:
+            grid = griddata(
+                points,
+                values,
+                (x_grid, y_grid),
+                method=grid_interpolation,
+                fill_value=fill_value,
+            )
+        except Exception as exc:
+            raise PlottingError(
+                f"Could not interpolate the data onto a grid ({exc}). Check that points "
+                "and values are compatible and that enough points were provided."
+            ) from exc
         return cls(
             image=grid,
             x_axis_range=x_axis_range,
@@ -355,17 +381,145 @@ class Heatmap(Plottable2D):
             norm=norm,
         )
 
+    @classmethod
+    def from_pdf(
+        cls,
+        path: str,
+        page: int = 0,
+        dpi: float = 200,
+        grayscale: bool = False,
+        x_axis_range: Optional[tuple[float, float]] = None,
+        y_axis_range: Optional[tuple[float, float]] = None,
+        color_map: str | Colormap | Inherit = INHERIT,
+        color_map_range: Optional[tuple[float, float]] = None,
+        show_color_bar: bool = True,
+        alpha: float = 1.0,
+        aspect_ratio: str | float | Inherit = INHERIT,
+        origin_position: str | Inherit = INHERIT,
+        interpolation: str = "none",
+        norm: Optional[str | Normalize] = None,
+    ) -> Self:
+        """
+        Creates a heatmap by rasterizing a page of a PDF file.
+
+        This requires the optional ``graphinglib[pdf]`` extra (installs ``pypdfium2``).
+
+        Parameters
+        ----------
+        path : str
+            Path to the PDF file to open.
+        page : int
+            Index of the page to rasterize.
+            Defaults to ``0``.
+        dpi : float
+            Resolution used to rasterize the page, in dots per inch.
+            Defaults to ``200``.
+        grayscale : bool
+            Whether to rasterize the page directly to a single-channel grayscale array, so that
+            ``color_map`` is applied to it like a regular data heatmap. When ``False``, the page is
+            kept as an RGB image, matching how :class:`~graphinglib.data_plotting_2d.Heatmap`
+            already displays other image file formats; in that case, ``color_map`` and
+            ``show_color_bar`` have no effect, since an RGB image never gets a color bar (same
+            behavior as loading any other image file).
+            Defaults to ``False``.
+        x_axis_range, y_axis_range : tuple[float, float], optional
+            The range of x and y values used for the axes as tuples containing the start and end of the range.
+        color_map : str, Colormap
+            The color map to use for the :class:`~graphinglib.data_plotting_2d.Heatmap`. Only has an effect when
+            ``grayscale`` is ``True``. Can either be specified as a string (named colormap from Matplotlib) or a
+            Colormap object.
+            Examples include ``"viridis"``, ``"plasma"``, and ``"coolwarm"``.
+            Defaults to ``"gray"`` when ``grayscale`` is ``True``; otherwise, default depends on the
+            ``figure_style`` configuration.
+        color_map_range: tuple[float, float], optional
+            The data range covered by the color map, given as ``(minimum, maximum)``.
+        show_color_bar : bool
+            Whether or not to display the color bar next to the plot. Only has an effect when
+            ``grayscale`` is ``True``.
+            Defaults to ``True``.
+        alpha : float
+            Opacity value of the :class:`~graphinglib.data_plotting_2d.Heatmap`.
+            Range is ``0`` (transparent) to ``1`` (opaque).
+            Defaults to 1.0.
+        aspect_ratio : str or float
+            Aspect ratio of the axes.
+            Values include ``"auto"``, ``"equal"``, or a positive float.
+            Default depends on the ``figure_style`` configuration.
+        origin_position : str
+            Position of the origin of the axes (upper left or lower left corner).
+            Values are ``"upper"`` and ``"lower"``.
+            Default depends on the ``figure_style`` configuration.
+        interpolation : str
+            Interpolation method to be applied to the image.
+            Values include ``"none"``, ``"nearest"``, ``"bilinear"``, ``"bicubic"``, ``"spline16"``,
+            ``"spline36"``, ``"hanning"``, ``"hamming"``, ``"hermite"``, ``"kaiser"``, ``"quadric"``,
+            ``"catrom"``, ``"gaussian"``, ``"bessel"``, ``"mitchell"``, ``"sinc"``, and ``"lanczos"``.
+            Defaults to ``"none"``.
+
+            .. seealso::
+                For other interpolation methods, refer to
+                `Interpolations for imshow <https://matplotlib.org/stable/gallery/images_contours_and_fields/interpolation_methods.html>`_.
+
+        norm : str or Normalize, optional
+            Normalization of the colormap. Default is ``None``.
+
+        Returns
+        -------
+        A :class:`~graphinglib.data_plotting_2d.Heatmap` object created from a page of a PDF file.
+        """
+        _require_pypdfium2("Heatmap.from_pdf")
+        with pdfium.PdfDocument(path) as pdf:
+            bitmap = pdf[page].render(
+                scale=dpi / 72, rev_byteorder=True, grayscale=grayscale
+            )
+            image = bitmap.to_numpy()
+        if grayscale and is_inherit(color_map):
+            color_map = "gray"
+        return cls(
+            image=image,
+            x_axis_range=x_axis_range,
+            y_axis_range=y_axis_range,
+            color_map=color_map,
+            color_map_range=color_map_range,
+            show_color_bar=show_color_bar,
+            alpha=alpha,
+            aspect_ratio=aspect_ratio,
+            origin_position=origin_position,
+            interpolation=interpolation,
+            norm=norm,
+        )
+
     @property
-    def image(self) -> ArrayLike | str:
+    def image(self) -> np.ndarray:
         return self._image
 
     @image.setter
     def image(self, image: ArrayLike | str) -> None:
         if isinstance(image, str):
-            self._image = imread(image)
+            try:
+                self._image = imread(image)
+            except FileNotFoundError:
+                raise  # a missing file is already a clear error
+            except Exception as exc:
+                raise PlottingError(
+                    f"Could not read {image!r} as an image ({exc})."
+                ) from exc
             self._show_color_bar = False
         else:
             self._image = np.asarray(image)
+            # Validate at the boundary so a bad shape is reported here rather than as a
+            # cryptic matplotlib error at plotting time.
+            is_2d = self._image.ndim == 2
+            is_rgb = self._image.ndim == 3 and self._image.shape[-1] in (3, 4)
+            if not (is_2d or is_rgb):
+                raise InvalidParameterError(
+                    "image must be a 2D array of values or a 3D array of RGB(A) pixels "
+                    f"(last axis of size 3 or 4), but got an array of shape "
+                    f"{self._image.shape}."
+                )
+            if is_rgb:
+                # RGB(A) pixel data has no colormap-driven scalar meaning, same as a file-loaded image.
+                self._show_color_bar = False
 
     @property
     def x_axis_range(self) -> Optional[tuple[float, float]]:
@@ -400,27 +554,27 @@ class Heatmap(Plottable2D):
         self._y_mesh = None if y_mesh is None else np.asarray(y_mesh)
 
     @property
-    def color_map(self) -> str | Colormap:
+    def color_map(self) -> Styled[str | Colormap]:
         return self._color_map
 
     @color_map.setter
-    def color_map(self, color_map: str | Colormap) -> None:
+    def color_map(self, color_map: Styled[str | Colormap]) -> None:
         self._color_map = color_map
 
     @property
-    def color_map_range(self) -> tuple[float, float]:
+    def color_map_range(self) -> tuple[float, float] | None:
         return self._color_map_range
 
     @color_map_range.setter
-    def color_map_range(self, color_map_range: tuple[float, float]) -> None:
+    def color_map_range(self, color_map_range: tuple[float, float] | None) -> None:
         self._color_map_range = color_map_range
 
     @property
-    def show_color_bar(self) -> bool:
+    def show_color_bar(self) -> Styled[bool]:
         return self._show_color_bar
 
     @show_color_bar.setter
-    def show_color_bar(self, show_color_bar: bool) -> None:
+    def show_color_bar(self, show_color_bar: Styled[bool]) -> None:
         self._show_color_bar = show_color_bar
 
     @property
@@ -432,19 +586,19 @@ class Heatmap(Plottable2D):
         self._alpha = alpha
 
     @property
-    def aspect_ratio(self) -> str | float:
+    def aspect_ratio(self) -> Styled[str | float]:
         return self._aspect_ratio
 
     @aspect_ratio.setter
-    def aspect_ratio(self, aspect_ratio: str | float) -> None:
+    def aspect_ratio(self, aspect_ratio: Styled[str | float]) -> None:
         self._aspect_ratio = aspect_ratio
 
     @property
-    def origin_position(self) -> str:
+    def origin_position(self) -> Styled[str]:
         return self._origin_position
 
     @origin_position.setter
-    def origin_position(self, origin_position: str) -> None:
+    def origin_position(self, origin_position: Styled[str]) -> None:
         self._origin_position = origin_position
 
     @property
@@ -461,9 +615,26 @@ class Heatmap(Plottable2D):
 
     @property
     def _xy_range(self) -> Optional[tuple[float, float, float, float]]:
-        if self._x_axis_range is not None and self._y_axis_range is not None:
-            return self._x_axis_range + self._y_axis_range
-        return None
+        if self._x_axis_range is None and self._y_axis_range is None:
+            return None
+        num_rows, num_cols = self._image.shape[:2]
+        x_range = (
+            self._x_axis_range
+            if self._x_axis_range is not None
+            else (-0.5, num_cols - 0.5)
+        )
+        if self._y_axis_range is not None:
+            y_range = self._y_axis_range
+        elif self._origin_position == "lower":
+            y_range = (-0.5, num_rows - 0.5)
+        else:
+            y_range = (num_rows - 0.5, -0.5)
+        return (
+            float(x_range[0]),
+            float(x_range[1]),
+            float(y_range[0]),
+            float(y_range[1]),
+        )
 
     def copy(self) -> Self:
         """
@@ -515,7 +686,7 @@ class Heatmap(Plottable2D):
             params["vmax"] = max(self._color_map_range)
         use_pcolormesh = self._x_mesh is not None and self._y_mesh is not None
         if use_pcolormesh:
-            params = {k: v for k, v in params.items() if v != INHERIT}
+            params = strip_inherit(params)
             image = axes.pcolormesh(
                 self._x_mesh,
                 self._y_mesh,
@@ -533,14 +704,15 @@ class Heatmap(Plottable2D):
                 }
             )
 
-            params = {k: v for k, v in params.items() if v != INHERIT}
+            params = strip_inherit(params)
             image = axes.imshow(
                 self._image,
                 zorder=z_order,
                 **params,
             )
-        fig = axes.get_figure()
-        if self._show_color_bar:
+        if resolve_or(self._show_color_bar, True):
+            fig = axes.get_figure()
+            assert fig is not None
             fig.colorbar(image, ax=axes, **self._color_bar_params)
 
 
@@ -745,7 +917,7 @@ class VectorField(Plottable2D):
         self._v_data = np.asarray(v_data)
 
     @property
-    def arrow_width(self) -> float:
+    def arrow_width(self) -> Styled[float]:
         return self._arrow_width
 
     @arrow_width.setter
@@ -753,7 +925,7 @@ class VectorField(Plottable2D):
         self._arrow_width = arrow_width
 
     @property
-    def arrow_head_size(self) -> float:
+    def arrow_head_size(self) -> Styled[float]:
         return self._arrow_head_size
 
     @arrow_head_size.setter
@@ -777,7 +949,7 @@ class VectorField(Plottable2D):
         self._make_angles_axes_independent = value
 
     @property
-    def color(self) -> str:
+    def color(self) -> Styled[str]:
         return self._color
 
     @color.setter
@@ -799,17 +971,19 @@ class VectorField(Plottable2D):
             angle = "uv"
         else:
             angle = "xy"
+        arrow_width = resolve_or(self._arrow_width, 1)
+        arrow_head_size = resolve_or(self._arrow_head_size, 1)
         params = {
             "angles": angle,
-            "width": 0.005 * self._arrow_width,
-            "headwidth": 4 * self._arrow_head_size / self._arrow_width,
-            "headlength": 4 * self._arrow_head_size / self._arrow_width,
-            "headaxislength": 4 * self._arrow_head_size / self._arrow_width,
+            "width": 0.005 * arrow_width,
+            "headwidth": 4 * arrow_head_size / arrow_width,
+            "headlength": 4 * arrow_head_size / arrow_width,
+            "headaxislength": 4 * arrow_head_size / arrow_width,
             "color": self._color,
             "scale": 1 / self._scale if self._scale is not None else None,
             "scale_units": "xy",
         }
-        params = {k: v for k, v in params.items() if v != INHERIT}
+        params = strip_inherit(params)
         axes.quiver(
             self._x_data,
             self._y_data,
@@ -861,10 +1035,10 @@ class Contour(Plottable2D):
         Default depends on the ``figure_style`` configuration.
     """
 
-    _z_data: ArrayLike
-    _x_mesh: ArrayLike
-    _y_mesh: ArrayLike
-    _levels: int | Inherit = INHERIT
+    _z_data: np.ndarray
+    _x_mesh: np.ndarray | None
+    _y_mesh: np.ndarray | None
+    _levels: Styled[int | ArrayLike] = INHERIT
     _color_map: str | Colormap | Inherit = INHERIT
     _show_color_bar: bool | Inherit = INHERIT
     _filled: bool | Inherit = INHERIT
@@ -1012,23 +1186,23 @@ class Contour(Plottable2D):
         )
 
     @property
-    def x_mesh(self) -> ArrayLike:
+    def x_mesh(self) -> np.ndarray | None:
         return self._x_mesh
 
     @x_mesh.setter
-    def x_mesh(self, x_mesh: ArrayLike) -> None:
+    def x_mesh(self, x_mesh: ArrayLike | None) -> None:
         self._x_mesh = None if x_mesh is None else np.asarray(x_mesh)
 
     @property
-    def y_mesh(self) -> ArrayLike:
+    def y_mesh(self) -> np.ndarray | None:
         return self._y_mesh
 
     @y_mesh.setter
-    def y_mesh(self, y_mesh: ArrayLike) -> None:
+    def y_mesh(self, y_mesh: ArrayLike | None) -> None:
         self._y_mesh = None if y_mesh is None else np.asarray(y_mesh)
 
     @property
-    def z_data(self) -> ArrayLike:
+    def z_data(self) -> np.ndarray:
         return self._z_data
 
     @z_data.setter
@@ -1036,59 +1210,59 @@ class Contour(Plottable2D):
         self._z_data = np.asarray(z_data)
 
     @property
-    def levels(self) -> int | ArrayLike | Inherit:
+    def levels(self) -> Styled[int | ArrayLike]:
         return self._levels
 
     @levels.setter
-    def levels(self, levels: int | ArrayLike | Inherit) -> None:
+    def levels(self, levels: Styled[int | ArrayLike]) -> None:
         self._levels = levels
 
     @property
-    def color_map(self) -> str | Colormap:
+    def color_map(self) -> Styled[str | Colormap]:
         return self._color_map
 
     @color_map.setter
-    def color_map(self, color_map: str | Colormap) -> None:
+    def color_map(self, color_map: Styled[str | Colormap]) -> None:
         self._color_map = color_map
 
     @property
-    def color_map_range(self) -> tuple[float, float]:
+    def color_map_range(self) -> tuple[float, float] | None:
         return self._color_map_range
 
     @color_map_range.setter
-    def color_map_range(self, color_map_range: tuple[float, float]) -> None:
+    def color_map_range(self, color_map_range: tuple[float, float] | None) -> None:
         self._color_map_range = color_map_range
 
     @property
-    def show_color_bar(self) -> bool:
+    def show_color_bar(self) -> Styled[bool]:
         return self._show_color_bar
 
     @show_color_bar.setter
-    def show_color_bar(self, show_color_bar: bool) -> None:
+    def show_color_bar(self, show_color_bar: Styled[bool]) -> None:
         self._show_color_bar = show_color_bar
 
     @property
-    def filled(self) -> bool:
+    def filled(self) -> Styled[bool]:
         return self._filled
 
     @filled.setter
-    def filled(self, filled: bool) -> None:
+    def filled(self, filled: Styled[bool]) -> None:
         self._filled = filled
 
     @property
-    def alpha(self) -> float:
+    def alpha(self) -> Styled[float]:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, alpha: float) -> None:
+    def alpha(self, alpha: Styled[float]) -> None:
         self._alpha = alpha
 
     @property
-    def line_widths(self) -> float | ArrayLike:
+    def line_widths(self) -> Styled[float | ArrayLike]:
         return self._line_widths
 
     @line_widths.setter
-    def line_widths(self, line_widths: float | ArrayLike) -> None:
+    def line_widths(self, line_widths: Styled[float | ArrayLike]) -> None:
         self._line_widths = line_widths
 
     @property
@@ -1143,20 +1317,19 @@ class Contour(Plottable2D):
         else:
             x_mesh = self._x_mesh
             y_mesh = self._y_mesh
+        filled = resolve_or(self._filled, True)
         params = {
             "levels": self._levels,
             "cmap": self._color_map,
             "alpha": self._alpha,
-            "linewidths": self._line_widths if not self._filled else None,
+            "linewidths": self._line_widths if not filled else None,
         }
         if self._color_map_range is not None:
             params["vmin"] = min(self._color_map_range)
             params["vmax"] = max(self._color_map_range)
 
-        params = {
-            k: v for k, v in params.items() if not isinstance(v, str) or v != INHERIT
-        }
-        if self._filled:
+        params = strip_inherit(params)
+        if filled:
             cont = axes.contourf(
                 x_mesh,
                 y_mesh,
@@ -1172,8 +1345,9 @@ class Contour(Plottable2D):
                 zorder=z_order,
                 **params,
             )
-        if self._show_color_bar:
+        if resolve_or(self._show_color_bar, True):
             fig = axes.get_figure()
+            assert fig is not None
             fig.colorbar(cont, ax=axes, **self._color_bar_params)
 
 
@@ -1345,17 +1519,23 @@ class Stream(Plottable2D):
             "cmap": self._color_map,
             "arrowsize": self._arrow_size,
         }
-        params = {k: v for k, v in params.items() if v != INHERIT}
+        params = strip_inherit(params)
         if is_inherit(self._color):
             pass
         else:
             params["color"] = self._color
 
-        axes.streamplot(
-            x=self._x_data,
-            y=self._y_data,
-            u=self._u_data,
-            v=self._v_data,
-            zorder=z_order,
-            **params,
-        )
+        try:
+            axes.streamplot(
+                x=self._x_data,
+                y=self._y_data,
+                u=self._u_data,
+                v=self._v_data,
+                zorder=z_order,
+                **params,
+            )
+        except Exception as exc:
+            raise PlottingError(
+                f"Could not draw the Stream ({exc}). Check that x and y are evenly "
+                "spaced 1D arrays and that u and v have shape (len(y), len(x))."
+            ) from exc

@@ -24,8 +24,8 @@ except ImportError:
 
 from graphinglib.data_plotting_1d import Curve
 from graphinglib.file_manager import FileLoader
+from graphinglib.exceptions import GraphingException
 from graphinglib.graph_elements import (
-    GraphingException,
     Plottable,
     Text,
 )
@@ -45,7 +45,9 @@ class DummyPlottable(Plottable):
         )
 
 
-class SmartFigurePropertyMixin:
+class SmartFigurePropertyMixin(unittest.TestCase):
+    fig: SmartFigure
+
     def assert_basic_scalar_property_validation(self):
         with self.assertRaises(TypeError):
             self.fig.size = "big"
@@ -173,7 +175,7 @@ class SmartFigurePropertyMixin:
         self.assertIs(self.fig.set_reference_labels_params(font_size=5.0), self.fig)
 
 
-class TestSmartFigureLeaf(unittest.TestCase, SmartFigurePropertyMixin):
+class TestSmartFigureLeaf(SmartFigurePropertyMixin):
     def setUp(self):
         self.fig = SmartFigure()
         self.twin_axis = SmartTwinAxis()
@@ -343,6 +345,7 @@ class TestSmartFigureLeaf(unittest.TestCase, SmartFigurePropertyMixin):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.fig.show(fullscreen=False)
+        assert isinstance(self.fig._figure, plt.Figure)
         plt.close(self.fig._figure)
 
         self.fig.save("test_smart_figure_output.png")
@@ -369,7 +372,7 @@ class TestSmartFigureLeaf(unittest.TestCase, SmartFigurePropertyMixin):
         self.assertEqual(bad_style_fig.elements[0]._line_width, 10)
 
 
-class TestSmartFigureContainer(unittest.TestCase, SmartFigurePropertyMixin):
+class TestSmartFigureContainer(SmartFigurePropertyMixin):
     def setUp(self):
         self.fig = SmartFigure(2, 3)
         self.child_curve = DummyPlottable("child")

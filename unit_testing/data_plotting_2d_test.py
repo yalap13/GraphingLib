@@ -1,4 +1,7 @@
+import os
+import tempfile
 import unittest
+from importlib.util import find_spec
 from unittest.mock import patch
 
 import numpy as np
@@ -6,10 +9,34 @@ from matplotlib import pyplot as plt
 from matplotlib.colors import to_rgba
 
 from graphinglib.data_plotting_2d import Contour, Heatmap, Stream, VectorField
+from graphinglib.exceptions import InvalidParameterError, PlottingError
 from graphinglib.figure import Figure
+
+HAS_PYPDFIUM2 = find_spec("pypdfium2") is not None
 
 
 class TestHeatmap(unittest.TestCase):
+    def test_invalid_image_shape_raises_at_construction(self):
+        # A 1D array is reported here rather than as a cryptic matplotlib error at plot time.
+        with self.assertRaises(InvalidParameterError):
+            Heatmap([1, 2, 3, 4])
+        # A 2D array and an RGB(A) array are both accepted.
+        Heatmap(np.zeros((4, 4)))
+        Heatmap(np.zeros((4, 4, 3)))
+
+    def test_unreadable_image_file_raises_plotting_error(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt", mode="w", delete=False) as f:
+            f.write("this is not an image")
+            path = f.name
+        try:
+            with self.assertRaises(PlottingError):
+                Heatmap(path)
+        finally:
+            os.remove(path)
+        # A genuinely missing file stays a plain FileNotFoundError.
+        with self.assertRaises(FileNotFoundError):
+            Heatmap("/nonexistent/definitely/not/here.png")
+
     def test_init_and_plot(self):
         array_of_data = np.random.rand(10, 10)
         heatmap = Heatmap(
@@ -36,6 +63,59 @@ class TestHeatmap(unittest.TestCase):
             fig.axes[1].get_ylim(),
             (min(array_of_data.flatten()), max(array_of_data.flatten())),
         )
+
+    def test_only_x_axis_range_set(self):
+        array_of_data = np.random.rand(10, 10)
+        heatmap = Heatmap(
+            image=array_of_data,
+            x_axis_range=(0, 10),
+            color_map="viridis",
+            show_color_bar=False,
+            aspect_ratio="auto",
+            origin_position="upper",
+            interpolation="nearest",
+        )
+        fig, ax = plt.subplots()
+        heatmap._plot_element(ax, 0)
+        self.assertEqual(ax.get_xlim(), (0, 10))
+        self.assertEqual(ax.get_ylim(), (9.5, -0.5))
+
+    def test_only_y_axis_range_set(self):
+        array_of_data = np.random.rand(10, 10)
+        heatmap = Heatmap(
+            image=array_of_data,
+            y_axis_range=(0, 10),
+            color_map="viridis",
+            show_color_bar=False,
+            aspect_ratio="auto",
+            origin_position="upper",
+            interpolation="nearest",
+        )
+        fig, ax = plt.subplots()
+        heatmap._plot_element(ax, 0)
+        self.assertEqual(ax.get_xlim(), (-0.5, 9.5))
+        self.assertEqual(ax.get_ylim(), (0, 10))
+
+    def test_only_x_axis_range_set_origin_lower(self):
+        array_of_data = np.random.rand(10, 10)
+        heatmap = Heatmap(
+            image=array_of_data,
+            x_axis_range=(0, 10),
+            color_map="viridis",
+            show_color_bar=False,
+            aspect_ratio="auto",
+            origin_position="lower",
+            interpolation="nearest",
+        )
+        fig, ax = plt.subplots()
+        heatmap._plot_element(ax, 0)
+        self.assertEqual(ax.get_xlim(), (0, 10))
+        self.assertEqual(ax.get_ylim(), (-0.5, 9.5))
+
+    def test_xy_range_none_when_no_ranges_set(self):
+        array_of_data = np.random.rand(10, 10)
+        heatmap = Heatmap(image=array_of_data)
+        self.assertIsNone(heatmap._xy_range)
 
     def test_from_function(self):
         heatmap = Heatmap.from_function(
@@ -91,6 +171,57 @@ class TestHeatmap(unittest.TestCase):
         self.assertEqual(len(fig.axes), 2)
         self.assertAlmostEqual(fig.axes[1].get_ylim()[0], min(z), places=3)
         self.assertAlmostEqual(fig.axes[1].get_ylim()[1], max(z), places=3)
+
+    @unittest.skipUnless(
+        HAS_PYPDFIUM2,
+        "Install the optional extra with `pip install graphinglib[pdf]` to run PDF heatmap tests.",
+    )
+    def test_from_pdf(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            pdf_path = os.path.join(tmp_dir, "test.pdf")
+            source_fig, source_ax = plt.subplots(figsize=(2, 2))
+            source_ax.plot([0, 1, 2], [0, 1, 0])
+            source_fig.savefig(pdf_path, format="pdf")
+            plt.close(source_fig)
+
+            heatmap = Heatmap.from_pdf(pdf_path)
+            self.assertIsInstance(heatmap.image, np.ndarray)
+            self.assertEqual(heatmap.image.ndim, 3)
+            self.assertEqual(heatmap.image.shape[2], 3)
+            self.assertFalse(heatmap.show_color_bar)
+
+            # Explicitly requesting a color bar on an RGB-mode page must still be ignored,
+            # same as the existing invariant for file-loaded images.
+            heatmap_override = Heatmap.from_pdf(pdf_path, show_color_bar=True)
+            self.assertFalse(heatmap_override.show_color_bar)
+
+    @unittest.skipUnless(
+        HAS_PYPDFIUM2,
+        "Install the optional extra with `pip install graphinglib[pdf]` to run PDF heatmap tests.",
+    )
+    def test_from_pdf_grayscale(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            pdf_path = os.path.join(tmp_dir, "test.pdf")
+            source_fig, source_ax = plt.subplots(figsize=(2, 2))
+            source_ax.plot([0, 1, 2], [0, 1, 0])
+            source_fig.savefig(pdf_path, format="pdf")
+            plt.close(source_fig)
+
+            heatmap = Heatmap.from_pdf(pdf_path, grayscale=True)
+            self.assertEqual(heatmap.image.ndim, 2)
+            self.assertEqual(heatmap.color_map, "gray")
+            self.assertTrue(heatmap.show_color_bar)
+
+            heatmap_override = Heatmap.from_pdf(
+                pdf_path, grayscale=True, color_map="viridis"
+            )
+            self.assertEqual(heatmap_override.color_map, "viridis")
+
+    def test_image_setter_disables_color_bar_for_rgb_array(self):
+        heatmap = Heatmap(image=np.random.rand(4, 4, 3), show_color_bar=True)
+        self.assertFalse(heatmap._show_color_bar)
+        heatmap_rgba = Heatmap(image=np.random.rand(4, 4, 4), show_color_bar=True)
+        self.assertFalse(heatmap_rgba._show_color_bar)
 
     def test_copy(self):
         array_of_data = np.random.rand(10, 10)

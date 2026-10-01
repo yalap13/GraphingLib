@@ -1,13 +1,24 @@
 from __future__ import annotations as _annotations_
 
-from .inherit import INHERIT, Inherit, is_inherit
+from .inherit import INHERIT, Inherit, is_inherit, resolved, strip_inherit
 
 from collections import OrderedDict
 from copy import deepcopy
 from logging import warning
 from shutil import which
 from string import ascii_lowercase
-from typing import Any, Callable, Iterable, Iterator, Literal, Self, TypeVar, Union
+from collections.abc import Sequence
+from typing import (
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Literal,
+    Self,
+    TypeVar,
+    Union,
+    cast,
+)
 
 try:  # Optional dependency: astropy
     from astropy.units import Quantity
@@ -16,8 +27,8 @@ try:  # Optional dependency: astropy
     _ASTROPY_AVAILABLE = True
 except ImportError:
     _ASTROPY_AVAILABLE = False
-    WCS = type("WCSPlaceholder", (), {})  # type: ignore[assignment]
-    Quantity = type("QuantityPlaceholder", (), {})  # type: ignore[assignment]
+    WCS = cast(Any, type("WCSPlaceholder", (), {}))
+    Quantity = cast(Any, type("QuantityPlaceholder", (), {}))
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -25,6 +36,8 @@ from matplotlib.axes import Axes
 from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.collections import LineCollection
 from matplotlib.figure import Figure, SubFigure
+from matplotlib.gridspec import GridSpec
+from matplotlib.layout_engine import ConstrainedLayoutEngine
 from matplotlib.legend_handler import HandlerPatch
 from matplotlib.patches import Polygon
 from matplotlib.projections import get_projection_names
@@ -32,7 +45,17 @@ from matplotlib.transforms import ScaledTranslation
 from numpy.typing import ArrayLike
 
 from .file_manager import FileLoader, FileUpdater, get_default_style, get_styles
-from .graph_elements import GraphingException, Plottable, Text
+from .exceptions import (
+    IncompatibleArgumentsError,
+    InvalidOperationError,
+    InvalidParameterError,
+    InvalidParameterTypeError,
+    LayoutError,
+    StyleFileError,
+    StyleNotFoundError,
+    UnsupportedFeatureError,
+)
+from .graph_elements import Plottable, Text
 from .legend_artists import (
     HandlerMultipleLines,
     HandlerMultipleVerticalLines,
@@ -40,7 +63,7 @@ from .legend_artists import (
     VerticalLineCollection,
     histogram_legend_artist,
 )
-from .tools import _copy_with_overrides
+from .tools import _copy_with_overrides, _require_optional_dependency
 
 T = TypeVar("T")
 ListOrItem = Union[T, list[T]]
@@ -48,11 +71,7 @@ ListOrItem = Union[T, list[T]]
 
 def _require_astropy(feature: str = "this feature") -> None:
     """Raise a clear error when an astro-extra feature is used without the optional dependency installed."""
-    if not _ASTROPY_AVAILABLE:
-        raise GraphingException(
-            f"{feature} requires the optional `graphinglib[astro]` extra (installs Astropy). "
-            "Install it with `pip install graphinglib[astro]`."
-        )
+    _require_optional_dependency(_ASTROPY_AVAILABLE, feature, "astro", "Astropy")
 
 
 HAS_ASTROPY = _ASTROPY_AVAILABLE
@@ -260,8 +279,8 @@ class SmartFigure:
         y_label: str | None = None,
         size: tuple[float, float] | Inherit = INHERIT,
         title: str | None = None,
-        x_lim: ListOrItem[tuple[float, float] | None] = None,
-        y_lim: ListOrItem[tuple[float, float] | None] = None,
+        x_lim: ListOrItem[tuple[float | None, float | None] | None] = None,
+        y_lim: ListOrItem[tuple[float | None, float | None] | None] = None,
         sub_x_labels: Iterable[str] | None = None,
         sub_y_labels: Iterable[str] | None = None,
         subtitles: Iterable[str] | None = None,
@@ -279,10 +298,10 @@ class SmartFigure:
         reference_labels_loc: ListOrItem[
             Literal["inside", "outside"] | tuple[float, float]
         ] = "outside",
-        width_padding: float = None,
-        height_padding: float = None,
-        width_ratios: ArrayLike = None,
-        height_ratios: ArrayLike = None,
+        width_padding: float | None = None,
+        height_padding: float | None = None,
+        width_ratios: ArrayLike | None = None,
+        height_ratios: ArrayLike | None = None,
         share_x: bool = False,
         share_y: bool = False,
         projection: ListOrItem[Any | None] = None,
@@ -294,8 +313,7 @@ class SmartFigure:
         twin_y_axis: SmartTwinAxis | None = None,
         figure_style: str | Inherit = INHERIT,
         elements: Plottable
-        | Iterable[Plottable | SmartFigure | None]
-        | Iterable[Iterable[Plottable | None]] = [],
+        | Iterable[Plottable | SmartFigure | None | Iterable[Plottable | None]] = [],
         annotations: Iterable[Text] | None = None,
     ) -> None:
         self._mode: Literal["leaf", "container"] = "leaf"
@@ -345,12 +363,17 @@ class SmartFigure:
         self.elements = elements
         self.annotations = annotations
 
-        self._figure = None
-        self._gridspec = None
-        self._reference_label_i = None
+        self._figure: Figure | SubFigure | None = None
+        self._gridspec: GridSpec | None = None
+        self._reference_label_i: int | None = None
 
-        self._ticks = {}
-        self._tick_params = {"x major": {}, "y major": {}, "x minor": {}, "y minor": {}}
+        self._ticks: dict[str, Any] = {}
+        self._tick_params: dict[str, dict[str, Any]] = {
+            "x major": {},
+            "y major": {},
+            "x minor": {},
+            "y minor": {},
+        }
         self._pad_params = {}
         self._reference_labels_params = {}
 
@@ -366,9 +389,11 @@ class SmartFigure:
         self._custom_legend_labels = []
 
         self._hidden_spines = None
-        self._user_rc_dict = {}
+        self._user_rc_dict: dict[str, Any] = {}
         self._default_params = {}
-        self._subplot_p = {}  # used to store the ListOrItem parameters that can be different for each subplot
+        self._subplot_p: dict[
+            str, list[Any]
+        ] = {}  # used to store the ListOrItem parameters that can be different for each subplot
 
     @property
     def num_rows(self) -> int:
@@ -377,9 +402,9 @@ class SmartFigure:
     @num_rows.setter
     def num_rows(self, value: int) -> None:
         if not isinstance(value, int):
-            raise TypeError("num_rows must be an integer.")
+            raise InvalidParameterTypeError("num_rows must be an integer.")
         if value < 1:
-            raise ValueError("num_rows must be greater than 0.")
+            raise InvalidParameterError("num_rows must be greater than 0.")
         should_promote = False
         # Check if the number of rows is being reduced and conflicts with existing elements
         try:
@@ -387,7 +412,7 @@ class SmartFigure:
                 removed_rows = list(range(value, self._num_rows))
                 for pos, element in self._children.items():
                     if (pos[0].stop - 1) in removed_rows and element:
-                        raise GraphingException(
+                        raise InvalidOperationError(
                             "Cannot remove rows from the SmartFigure when there are elements in "
                             "them. Please remove the elements first."
                         )
@@ -410,9 +435,9 @@ class SmartFigure:
     @num_cols.setter
     def num_cols(self, value: int) -> None:
         if not isinstance(value, int):
-            raise TypeError("num_cols must be an integer.")
+            raise InvalidParameterTypeError("num_cols must be an integer.")
         if value < 1:
-            raise ValueError("num_cols must be greater than 0.")
+            raise InvalidParameterError("num_cols must be greater than 0.")
         should_promote = False
         # Check if the number of rows is being reduced and conflicts with existing elements
         try:
@@ -420,7 +445,7 @@ class SmartFigure:
                 removed_cols = list(range(value, self._num_cols))
                 for pos, element in self._children.items():
                     if (pos[1].stop - 1) in removed_cols and element:
-                        raise GraphingException(
+                        raise InvalidOperationError(
                             "Cannot remove cols from the SmartFigure when there are elements in "
                             "them. Please remove the elements first."
                         )
@@ -449,7 +474,7 @@ class SmartFigure:
         return self._x_label
 
     @x_label.setter
-    def x_label(self, value: str) -> None:
+    def x_label(self, value: str | None) -> None:
         self._x_label = value
 
     @property
@@ -457,7 +482,7 @@ class SmartFigure:
         return self._y_label
 
     @y_label.setter
-    def y_label(self, value: str) -> None:
+    def y_label(self, value: str | None) -> None:
         self._y_label = value
 
     @property
@@ -466,12 +491,15 @@ class SmartFigure:
 
     @size.setter
     def size(self, value: tuple[float, float] | Inherit):
-        if not isinstance(value, tuple) and value != INHERIT:
-            raise TypeError("size must be a tuple or 'default'.")
-        if isinstance(value, tuple) and len(value) != 2:
-            raise ValueError("size must be a tuple of length 2.")
-        if isinstance(value, tuple) and (value[0] <= 0 or value[1] <= 0):
-            raise ValueError("size values must be greater than 0.")
+        if is_inherit(value):
+            self._size = value
+            return
+        if not isinstance(value, tuple):
+            raise InvalidParameterTypeError("size must be a tuple or 'default'.")
+        if len(value) != 2:
+            raise InvalidParameterError("size must be a tuple of length 2.")
+        if value[0] <= 0 or value[1] <= 0:
+            raise InvalidParameterError("size values must be greater than 0.")
         self._size = value
 
     @property
@@ -483,31 +511,35 @@ class SmartFigure:
         self._title = value
 
     @property
-    def x_lim(self) -> ListOrItem[tuple[float, float] | None]:
+    def x_lim(self) -> ListOrItem[tuple[float | None, float | None] | None]:
         return self._x_lim
 
     @x_lim.setter
-    def x_lim(self, value: ListOrItem[tuple[float, float] | None]) -> None:
+    def x_lim(
+        self, value: ListOrItem[tuple[float | None, float | None] | None]
+    ) -> None:
         for v in value if isinstance(value, list) else [value]:
             if v is not None:
                 if not isinstance(v, tuple):
-                    raise TypeError("x_lim must be a tuple.")
+                    raise InvalidParameterTypeError("x_lim must be a tuple.")
                 if len(v) != 2:
-                    raise ValueError("x_lim must be a tuple of length 2.")
+                    raise InvalidParameterError("x_lim must be a tuple of length 2.")
         self._x_lim = value
 
     @property
-    def y_lim(self) -> ListOrItem[tuple[float, float] | None]:
+    def y_lim(self) -> ListOrItem[tuple[float | None, float | None] | None]:
         return self._y_lim
 
     @y_lim.setter
-    def y_lim(self, value: ListOrItem[tuple[float, float] | None]) -> None:
+    def y_lim(
+        self, value: ListOrItem[tuple[float | None, float | None] | None]
+    ) -> None:
         for v in value if isinstance(value, list) else [value]:
             if v is not None:
                 if not isinstance(v, tuple):
-                    raise TypeError("y_lim must be a tuple.")
+                    raise InvalidParameterTypeError("y_lim must be a tuple.")
                 if len(v) != 2:
-                    raise ValueError("y_lim must be a tuple of length 2.")
+                    raise InvalidParameterError("y_lim must be a tuple of length 2.")
         self._y_lim = value
 
     @property
@@ -518,7 +550,9 @@ class SmartFigure:
     def sub_x_labels(self, value: Iterable[str] | None) -> None:
         if value is not None:
             if not isinstance(value, Iterable):
-                raise TypeError("sub_x_labels must be an iterable of strings.")
+                raise InvalidParameterTypeError(
+                    "sub_x_labels must be an iterable of strings."
+                )
         self._sub_x_labels = value
 
     @property
@@ -529,7 +563,9 @@ class SmartFigure:
     def sub_y_labels(self, value: Iterable[str] | None) -> None:
         if value is not None:
             if not isinstance(value, Iterable):
-                raise TypeError("sub_y_labels must be an iterable of strings.")
+                raise InvalidParameterTypeError(
+                    "sub_y_labels must be an iterable of strings."
+                )
         self._sub_y_labels = value
 
     @property
@@ -540,7 +576,9 @@ class SmartFigure:
     def subtitles(self, value: Iterable[str] | None) -> None:
         if value is not None:
             if not isinstance(value, Iterable):
-                raise TypeError("subtitles must be an iterable of strings.")
+                raise InvalidParameterTypeError(
+                    "subtitles must be an iterable of strings."
+                )
         self._subtitles = value
 
     @property
@@ -551,7 +589,7 @@ class SmartFigure:
     def log_scale_x(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("log_scale_x must be a bool.")
+                raise InvalidParameterTypeError("log_scale_x must be a bool.")
         self._log_scale_x = value
 
     @property
@@ -562,7 +600,7 @@ class SmartFigure:
     def log_scale_y(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("log_scale_y must be a bool.")
+                raise InvalidParameterTypeError("log_scale_y must be a bool.")
         self._log_scale_y = value
 
     @property
@@ -573,7 +611,7 @@ class SmartFigure:
     def remove_axes(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("remove_axes must be a bool.")
+                raise InvalidParameterTypeError("remove_axes must be a bool.")
         self._remove_axes = value
 
     @property
@@ -584,9 +622,11 @@ class SmartFigure:
     def aspect_ratio(self, value: ListOrItem[float | Literal["auto", "equal"]]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, (float, int)) and v != "auto" and v != "equal":
-                raise TypeError("aspect_ratio must be a float, 'auto' or 'equal'.")
+                raise InvalidParameterTypeError(
+                    "aspect_ratio must be a float, 'auto' or 'equal'."
+                )
             if isinstance(v, (float, int)) and v <= 0:
-                raise ValueError("aspect_ratio must be greater than 0.")
+                raise InvalidParameterError("aspect_ratio must be greater than 0.")
         self._aspect_ratio = value
 
     @property
@@ -598,9 +638,13 @@ class SmartFigure:
         for v in value if isinstance(value, list) else [value]:
             if v is not None:
                 if not isinstance(v, (float, int)):
-                    raise TypeError("box_aspect_ratio must be a number.")
+                    raise InvalidParameterTypeError(
+                        "box_aspect_ratio must be a number."
+                    )
                 if v <= 0:
-                    raise ValueError("box_aspect_ratio must be greater than 0.")
+                    raise InvalidParameterError(
+                        "box_aspect_ratio must be greater than 0."
+                    )
         self._box_aspect_ratio = value
 
     @property
@@ -611,7 +655,7 @@ class SmartFigure:
     def remove_x_ticks(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("remove_x_ticks must be a bool.")
+                raise InvalidParameterTypeError("remove_x_ticks must be a bool.")
         self._remove_x_ticks = value
 
     @property
@@ -622,7 +666,7 @@ class SmartFigure:
     def remove_y_ticks(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("remove_y_ticks must be a bool.")
+                raise InvalidParameterTypeError("remove_y_ticks must be a bool.")
         self._remove_y_ticks = value
 
     @property
@@ -633,7 +677,7 @@ class SmartFigure:
     def invert_x_axis(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("invert_x_axis must be a bool.")
+                raise InvalidParameterTypeError("invert_x_axis must be a bool.")
         self._invert_x_axis = value
 
     @property
@@ -644,7 +688,7 @@ class SmartFigure:
     def invert_y_axis(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("invert_y_axis must be a bool.")
+                raise InvalidParameterTypeError("invert_y_axis must be a bool.")
         self._invert_y_axis = value
 
     @property
@@ -655,7 +699,7 @@ class SmartFigure:
     def reference_labels(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("reference_labels must be a bool.")
+                raise InvalidParameterTypeError("reference_labels must be a bool.")
         self._reference_labels = value
 
     @property
@@ -665,7 +709,7 @@ class SmartFigure:
     @global_reference_label.setter
     def global_reference_label(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("global_reference_label must be a bool.")
+            raise InvalidParameterTypeError("global_reference_label must be a bool.")
         self._global_reference_label = value
 
     @property
@@ -681,11 +725,11 @@ class SmartFigure:
         for v in value if isinstance(value, list) else [value]:
             if isinstance(v, tuple):
                 if len(v) != 2:
-                    raise ValueError(
+                    raise InvalidParameterError(
                         "If reference_labels_loc is a tuple, it must be of length 2."
                     )
             elif v not in ["inside", "outside"]:
-                raise ValueError(
+                raise InvalidParameterError(
                     "reference_labels_loc must be either 'inside' or 'outside'."
                 )
         self._reference_labels_loc = value
@@ -698,9 +742,11 @@ class SmartFigure:
     def width_padding(self, value: float | None) -> None:
         if value is not None:
             if not isinstance(value, (float, int)):
-                raise TypeError("width_padding must be a number.")
+                raise InvalidParameterTypeError("width_padding must be a number.")
             if value < 0:
-                raise ValueError("width_padding must be greater than or equal to 0.")
+                raise InvalidParameterError(
+                    "width_padding must be greater than or equal to 0."
+                )
         self._width_padding = value
 
     @property
@@ -711,9 +757,11 @@ class SmartFigure:
     def height_padding(self, value: float | None) -> None:
         if value is not None:
             if not isinstance(value, (float, int)):
-                raise TypeError("height_padding must be a number.")
+                raise InvalidParameterTypeError("height_padding must be a number.")
             if value < 0:
-                raise ValueError("height_padding must be greater than or equal to 0.")
+                raise InvalidParameterError(
+                    "height_padding must be greater than or equal to 0."
+                )
         self._height_padding = value
 
     @property
@@ -724,11 +772,16 @@ class SmartFigure:
     def width_ratios(self, value: ArrayLike | None) -> None:
         if value is not None:
             if not hasattr(value, "__len__"):
-                raise TypeError("width_ratios must be an ArrayLike.")
-            if not all(isinstance(x, (float, int)) for x in value):
-                raise TypeError("width_ratios must contain only numbers.")
-            if len(value) != self._num_cols:
-                raise ValueError("width_ratios must have the same length as num_cols.")
+                raise InvalidParameterTypeError("width_ratios must be an ArrayLike.")
+            ratios = cast(Sequence[float], value)
+            if not all(isinstance(x, (float, int)) for x in ratios):
+                raise InvalidParameterTypeError(
+                    "width_ratios must contain only numbers."
+                )
+            if len(ratios) != self._num_cols:
+                raise InvalidParameterError(
+                    "width_ratios must have the same length as num_cols."
+                )
         self._width_ratios = value
 
     @property
@@ -739,11 +792,16 @@ class SmartFigure:
     def height_ratios(self, value: ArrayLike | None) -> None:
         if value is not None:
             if not hasattr(value, "__len__"):
-                raise TypeError("height_ratios must be an ArrayLike.")
-            if not all(isinstance(x, (float, int)) for x in value):
-                raise TypeError("height_ratios must contain only numbers.")
-            if len(value) != self._num_rows:
-                raise ValueError("height_ratios must have the same length as num_rows.")
+                raise InvalidParameterTypeError("height_ratios must be an ArrayLike.")
+            ratios = cast(Sequence[float], value)
+            if not all(isinstance(x, (float, int)) for x in ratios):
+                raise InvalidParameterTypeError(
+                    "height_ratios must contain only numbers."
+                )
+            if len(ratios) != self._num_rows:
+                raise InvalidParameterError(
+                    "height_ratios must have the same length as num_rows."
+                )
         self._height_ratios = value
 
     @property
@@ -753,7 +811,7 @@ class SmartFigure:
     @share_x.setter
     def share_x(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("share_x must be a bool.")
+            raise InvalidParameterTypeError("share_x must be a bool.")
         self._share_x = value
 
     @property
@@ -763,7 +821,7 @@ class SmartFigure:
     @share_y.setter
     def share_y(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("share_y must be a bool.")
+            raise InvalidParameterTypeError("share_y must be a bool.")
         self._share_y = value
 
     @property
@@ -779,13 +837,13 @@ class SmartFigure:
             if v is not None:
                 if isinstance(v, str):
                     if v == "3d":
-                        raise GraphingException("3D projection is not supported.")
+                        raise UnsupportedFeatureError("3D projection is not supported.")
                     if v not in valid_projections:
-                        raise ValueError(
+                        raise InvalidParameterError(
                             f"projection must be one of {valid_projections} or a valid object."
                         )
                 elif isinstance(v, WCS):
-                    raise GraphingException(
+                    raise UnsupportedFeatureError(
                         "WCS projection should be used with the SmartFigureWCS object."
                     )
         self._projection = value
@@ -799,7 +857,7 @@ class SmartFigure:
     @general_legend.setter
     def general_legend(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("general_legend must be a bool.")
+            raise InvalidParameterTypeError("general_legend must be a bool.")
         self._general_legend = value
 
     @property
@@ -829,18 +887,22 @@ class SmartFigure:
             if v is not None:
                 if isinstance(v, str):
                     if v not in choices:
-                        raise ValueError(f"legend_loc must be one of {choices}.")
+                        raise IncompatibleArgumentsError(
+                            f"legend_loc must be one of {choices}."
+                        )
                     if self._general_legend and v == "best":
-                        raise ValueError(
+                        raise IncompatibleArgumentsError(
                             "legend_loc cannot be 'best' when general_legend is True."
                         )
                 elif isinstance(v, tuple):
                     if len(v) != 2:
-                        raise ValueError(
+                        raise InvalidParameterError(
                             "legend_loc must be a string or a tuple of length 2."
                         )
                 else:
-                    raise TypeError("legend_loc must be a string or tuple.")
+                    raise InvalidParameterTypeError(
+                        "legend_loc must be a string or tuple."
+                    )
         self._legend_loc = value
 
     @property
@@ -851,9 +913,9 @@ class SmartFigure:
     def legend_cols(self, value: ListOrItem[int]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, int):
-                raise TypeError("legend_cols must be an integer.")
+                raise InvalidParameterTypeError("legend_cols must be an integer.")
             if v < 1:
-                raise ValueError("legend_cols must be greater than 0.")
+                raise InvalidParameterError("legend_cols must be greater than 0.")
         self._legend_cols = value
 
     @property
@@ -864,7 +926,7 @@ class SmartFigure:
     def show_legend(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("show_legend must be a bool.")
+                raise InvalidParameterTypeError("show_legend must be a bool.")
         self._show_legend = value
 
     @property
@@ -875,11 +937,13 @@ class SmartFigure:
     def twin_x_axis(self, value: SmartTwinAxis | None) -> None:
         if value is not None:
             if not self.is_single_subplot:
-                raise GraphingException(
+                raise InvalidOperationError(
                     "Twin axes can only be created for single subplot SmartFigures."
                 )
             if not isinstance(value, SmartTwinAxis):
-                raise TypeError("twin_x_axis must be a SmartTwinAxis instance.")
+                raise InvalidParameterTypeError(
+                    "twin_x_axis must be a SmartTwinAxis instance."
+                )
         self._twin_x_axis = value
 
     @property
@@ -890,11 +954,13 @@ class SmartFigure:
     def twin_y_axis(self, value: SmartTwinAxis | None) -> None:
         if value is not None:
             if not self.is_single_subplot:
-                raise GraphingException(
+                raise InvalidOperationError(
                     "Twin axes can only be created for single subplot SmartFigures."
                 )
             if not isinstance(value, SmartTwinAxis):
-                raise TypeError("twin_y_axis must be a SmartTwinAxis instance.")
+                raise InvalidParameterTypeError(
+                    "twin_y_axis must be a SmartTwinAxis instance."
+                )
         self._twin_y_axis = value
 
     @property
@@ -904,10 +970,12 @@ class SmartFigure:
     @figure_style.setter
     def figure_style(self, value: str | Inherit) -> None:
         if not isinstance(value, str) and not is_inherit(value):
-            raise TypeError("figure_style must be a string or INHERIT.")
+            raise InvalidParameterTypeError("figure_style must be a string or INHERIT.")
         available_styles = [INHERIT, "matplotlib"] + get_styles(matplotlib=True)
         if value not in available_styles:
-            raise ValueError(f"figure_style must be one of {available_styles}.")
+            raise InvalidParameterError(
+                f"figure_style must be one of {available_styles}."
+            )
         self._figure_style = value
 
     @property
@@ -925,8 +993,7 @@ class SmartFigure:
         self,
         value: (
             Plottable
-            | Iterable[Plottable | SmartFigure | None]
-            | Iterable[Iterable[Plottable | None]]
+            | Iterable[Plottable | SmartFigure | None | Iterable[Plottable | None]]
         ),
     ) -> None:
         """
@@ -942,7 +1009,9 @@ class SmartFigure:
         :meth:`~graphinglib.SmartFigure.__setitem__` methods.
         """
         if isinstance(value, SmartFigure):
-            raise TypeError("Leaf elements cannot be assigned a SmartFigure directly.")
+            raise InvalidParameterTypeError(
+                "Leaf elements cannot be assigned a SmartFigure directly."
+            )
 
         if isinstance(value, Plottable):
             self._ensure_leaf_mode()
@@ -950,7 +1019,9 @@ class SmartFigure:
             return
 
         if not isinstance(value, Iterable):
-            raise TypeError("elements must be a Plottable or an iterable.")
+            raise InvalidParameterTypeError(
+                "elements must be a Plottable or an iterable."
+            )
 
         value_list = list(value)
         if self._should_use_container_elements_setter(value_list):
@@ -969,7 +1040,9 @@ class SmartFigure:
             if not isinstance(value, Iterable) or not all(
                 isinstance(t, Text) for t in value
             ):
-                raise TypeError("annotations must be an iterable of Text elements.")
+                raise InvalidParameterTypeError(
+                    "annotations must be an iterable of Text elements."
+                )
         self._annotations = value
 
     @property
@@ -985,7 +1058,7 @@ class SmartFigure:
     def show_grid(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("show_grid must be a bool.")
+                raise InvalidParameterTypeError("show_grid must be a bool.")
         self._show_grid = value
 
     @property
@@ -1008,7 +1081,9 @@ class SmartFigure:
     @hide_custom_legend_elements.setter
     def hide_custom_legend_elements(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("hide_custom_legend_elements must be a bool.")
+            raise InvalidParameterTypeError(
+                "hide_custom_legend_elements must be a bool."
+            )
         self._hide_custom_legend_elements = value
 
     @property
@@ -1032,7 +1107,9 @@ class SmartFigure:
     def hide_default_legend_elements(self, value: ListOrItem[bool]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, bool):
-                raise TypeError("hide_default_legend_elements must be a bool.")
+                raise InvalidParameterTypeError(
+                    "hide_default_legend_elements must be a bool."
+                )
         self._hide_default_legend_elements = value
 
     @property
@@ -1062,7 +1139,7 @@ class SmartFigure:
 
     def __setitem__(
         self,
-        key: int | slice | tuple[int | slice],
+        key: int | slice | tuple[int | slice, ...],
         element: Plottable | Iterable[Plottable | None] | SmartFigure | None,
     ) -> None:
         """
@@ -1072,7 +1149,7 @@ class SmartFigure:
 
         Parameters
         ----------
-        key : int | slice | tuple[int | slice]
+        key : int | slice | tuple[int | slice, ...]
             The key specifying the location(s) in the SmartFigure to assign the element(s). If a tuple of ints is
             provided, the element is placed in the corresponding square of the grid, following classical 2D numpy-like
             indexing. If slices are provided, the element can span multiple squares in the grid. If ``num_rows`` or
@@ -1090,7 +1167,7 @@ class SmartFigure:
                 - Assigning new Plottables to a cell with an existing child figure replaces that child figure's plotted
                   elements while preserving its span.
                 - You can add elements to an existing child plot using the ``+=`` operator.
-                - If the requested slice overlaps with multiple different child figures, a GraphingException is raised.
+                - If the requested slice overlaps with multiple different child figures, a LayoutError is raised.
 
         Examples
         --------
@@ -1150,20 +1227,9 @@ class SmartFigure:
             +------------+------------+
         """
         if self._mode == "leaf":
-            raise GraphingException(
+            raise LayoutError(
                 "SmartFigures used as a single plot do not support subplot assignment. "
                 "Increase num_rows or num_cols first to turn the SmartFigure into a layout."
-            )
-
-        if not any(
-            [
-                element is None,
-                isinstance(element, (Plottable, SmartFigure)),
-                SmartFigure._is_iterable_of_plottables(element),
-            ]
-        ):
-            raise TypeError(
-                "Element must be a Plottable, an iterable of Plottables, or a SmartFigure."
             )
 
         key_ = self._validate_and_normalize_key(key)
@@ -1173,7 +1239,7 @@ class SmartFigure:
             if len(overlapping) == 0:
                 return
             if len(overlapping) > 1:
-                raise GraphingException(
+                raise LayoutError(
                     f"The requested slice {key} overlaps with multiple subfigures. "
                     f"Cannot delete multiple subfigures at once. Please delete each subfigure separately."
                 )
@@ -1182,7 +1248,7 @@ class SmartFigure:
 
         if isinstance(element, SmartFigure):
             if len(overlapping) > 1:
-                raise GraphingException(
+                raise LayoutError(
                     f"The requested slice {key} overlaps with multiple subfigures. "
                     f"Cannot assign a new element to a position that overlaps with multiple subfigures. "
                     f"Please remove the overlapping subfigures first or use a more specific slice."
@@ -1211,7 +1277,7 @@ class SmartFigure:
             changed_span = existing_key
             changed_child = existing_child
         else:
-            raise GraphingException(
+            raise LayoutError(
                 f"The requested slice {key} overlaps with multiple subfigures. "
                 f"Cannot assign a new element to a position that overlaps with multiple subfigures. "
                 f"Please remove the overlapping subfigures first or use a more specific slice."
@@ -1219,7 +1285,7 @@ class SmartFigure:
         self._children = self._ordered_children()
         self._sync_auto_child_projection(changed_span, changed_child)
 
-    def __getitem__(self, key: int | slice | tuple[int | slice]) -> SmartFigure:
+    def __getitem__(self, key: int | slice | tuple[int | slice, ...]) -> SmartFigure:
         """
         Gives the child SmartFigure at the specified key in the SmartFigure. This can be used to modify or extract
         directly a child figure in a SmartFigure used as a layout. The indexing follows classical 2D numpy-like indexing,
@@ -1227,7 +1293,7 @@ class SmartFigure:
 
         Parameters
         ----------
-        key : int | slice | tuple[int | slice]
+        key : int | slice | tuple[int | slice, ...]
             The key specifying the location(s) in the SmartFigure to access. If a tuple of ints is provided, the child
             figure is accessed in the corresponding square of the grid, following classical 2D numpy-like indexing. If
             slices are provided, a child figure spanning multiple squares in the grid can be retrieved. If ``num_rows`` or
@@ -1238,7 +1304,7 @@ class SmartFigure:
                 If a child figure spans multiple cells, you can access it by indexing any cell it occupies. For
                 example, if a child figure spans ``[0, :]`` (entire first row), you can access it via ``fig[0, :]``,
                 ``fig[0, 0]``, or ``fig[0, 1]`` (assuming there are at least 2 columns). If the requested slice
-                overlaps with multiple different child figures, a GraphingException is raised. SmartFigures used as a
+                overlaps with multiple different child figures, a LayoutError is raised. SmartFigures used as a
                 single plot do not support subplot indexing.
 
         Returns
@@ -1247,9 +1313,7 @@ class SmartFigure:
             The child SmartFigure at the specified key.
         """
         if self._mode == "leaf":
-            raise GraphingException(
-                "Leaf SmartFigures do not support subplot indexing."
-            )
+            raise LayoutError("Leaf SmartFigures do not support subplot indexing.")
         span, child = self._get_selected_child(
             self._validate_and_normalize_key(key), key
         )
@@ -1321,7 +1385,7 @@ class SmartFigure:
 
     def _reset_stylable_elements_to_default(self) -> None:
         style_name = self._figure_style
-        if style_name == INHERIT:
+        if is_inherit(style_name):
             style_name = get_default_style()
         try:
             defaults = FileLoader(style_name).load()
@@ -1357,8 +1421,8 @@ class SmartFigure:
         return ordered
 
     def _validate_and_normalize_key(
-        self, key: int | slice | tuple[int | slice]
-    ) -> tuple[slice]:
+        self, key: int | slice | tuple[int | slice, ...]
+    ) -> tuple[slice, slice]:
         """
         Validates and normalizes the key for indexing into the SmartFigure. This method ensures that the key is
         either a single integer, a slice, or a tuple of integers/slices. It also checks for out-of-bounds indices and
@@ -1367,62 +1431,70 @@ class SmartFigure:
 
         Parameters
         ----------
-        key : int | slice | tuple[int | slice]
+        key : int | slice | tuple[int | slice, ...]
             The key to validate and normalize.
 
         Returns
         -------
-        tuple[slice]
+        tuple[slice, slice]
             The normalized key as a two-tuple of slices.
         """
-        if not isinstance(key, tuple):
-            key = (key,)
+        key_parts = key if isinstance(key, tuple) else (key,)
 
         # 1D SmartFigures
         if self._num_rows == 1 or self._num_cols == 1:
-            if len(key) == 1:
-                key = (0, key[0]) if self._num_rows == 1 else (key[0], 0)
-            elif len(key) != 2:
-                raise ValueError(
+            if len(key_parts) == 1:
+                row_key, col_key = (
+                    (0, key_parts[0]) if self._num_rows == 1 else (key_parts[0], 0)
+                )
+            elif len(key_parts) == 2:
+                row_key, col_key = key_parts
+            else:
+                raise InvalidParameterError(
                     "Key must be 1D (int or slice) or 2D with one zero index for 1D SmartFigure."
                 )
 
         # 2D SmartFigures
         else:
-            if len(key) != 2:
-                raise ValueError("2D indexing must use a tuple of length 2.")
+            if len(key_parts) != 2:
+                raise InvalidParameterError("2D indexing must use a tuple of length 2.")
+            row_key, col_key = key_parts
 
-        # Bounds check
-        new_keys = []
-        for i, (k, axis_size) in enumerate(zip(key, (self._num_rows, self._num_cols))):
-            if isinstance(k, int):
-                new_k = k + axis_size if k < 0 else k
-                if not (0 <= new_k < axis_size):
-                    raise IndexError(
-                        f"Index {k} out of bounds for axis {i} with size {axis_size}."
-                    )
-                new_keys.append(slice(new_k, new_k + 1, None))
-            elif isinstance(k, slice):
-                start = k.start if k.start is not None else 0
-                start = start + axis_size if start < 0 else start
-                stop = k.stop if k.stop is not None else axis_size
-                stop = stop + axis_size if stop < 0 else stop
-                if start < 0 or stop > axis_size:
-                    raise IndexError(
-                        f"{k} out of bounds for axis {i} with size {axis_size}."
-                    )
-                if start >= stop:
-                    raise IndexError(
-                        f"{k} for axis {i} must have stop larger than start."
-                    )
-                if k.step is not None:
-                    raise ValueError(f"{k} step for axis {i} must be None.")
-                new_keys.append(slice(start, stop, None))
-            else:
-                raise TypeError(
-                    f"Key element {k} for axis {i} must be an int or a slice."
+        return (
+            self._normalize_axis_key(row_key, self._num_rows, 0),
+            self._normalize_axis_key(col_key, self._num_cols, 1),
+        )
+
+    @staticmethod
+    def _normalize_axis_key(key: int | slice, axis_size: int, axis_index: int) -> slice:
+        if isinstance(key, int):
+            normalized_key = key + axis_size if key < 0 else key
+            if not (0 <= normalized_key < axis_size):
+                raise IndexError(
+                    f"Index {key} out of bounds for axis {axis_index} with size {axis_size}."
                 )
-        return tuple(new_keys)
+            return slice(normalized_key, normalized_key + 1, None)
+        if isinstance(key, slice):
+            start = key.start if key.start is not None else 0
+            start = start + axis_size if start < 0 else start
+            stop = key.stop if key.stop is not None else axis_size
+            stop = stop + axis_size if stop < 0 else stop
+            if start < 0 or stop > axis_size:
+                raise IndexError(
+                    f"{key} out of bounds for axis {axis_index} with size {axis_size}."
+                )
+            if start >= stop:
+                raise IndexError(
+                    f"{key} for axis {axis_index} must have stop larger than start."
+                )
+            if key.step is not None:
+                raise InvalidParameterError(
+                    f"{key} step for axis {axis_index} must be None."
+                )
+            return slice(start, stop, None)
+        raise InvalidParameterTypeError(
+            f"Key element {key} for axis {axis_index} must be an int or a slice."
+        )
 
     @staticmethod
     def _is_iterable_of_plottables(item: Any) -> bool:
@@ -1528,17 +1600,13 @@ class SmartFigure:
                     continue
                 if isinstance(element, Plottable):
                     self._leaf_elements.append(element)
-                elif SmartFigure._is_iterable_of_plottables(element):
-                    self._leaf_elements.extend(self._normalize_leaf_rhs(element))
                 else:
-                    raise TypeError(
-                        "Leaf SmartFigures only accept Plottables or iterables of Plottables in add_elements."
-                    )
+                    self._leaf_elements.extend(self._normalize_leaf_rhs(element))
             return self
 
         max_cells = self._num_rows * self._num_cols
         if len(elements) > max_cells:
-            raise ValueError(
+            raise InvalidParameterError(
                 "Too many elements provided for the number of cells in the SmartFigure."
             )
 
@@ -1546,12 +1614,14 @@ class SmartFigure:
             if element is None:
                 continue
             if isinstance(element, SmartFigure):
-                raise TypeError("Container add_elements does not accept SmartFigures.")
+                raise InvalidParameterTypeError(
+                    "Container add_elements does not accept SmartFigures."
+                )
             key = self._dense_index_to_key(index)
             overlapping = self._get_overlapping_elements(key)
 
             if len(overlapping) > 1:
-                raise GraphingException(
+                raise LayoutError(
                     "Cannot add elements to a cell that overlaps with multiple different subfigures."
                 )
 
@@ -1563,7 +1633,7 @@ class SmartFigure:
 
             _, child = overlapping[0]
             if not child.is_single_subplot:
-                raise GraphingException(
+                raise LayoutError(
                     "add_elements can only append to child SmartFigures that are used as a single plot."
                 )
             child += element
@@ -1580,20 +1650,24 @@ class SmartFigure:
             return self
 
         if isinstance(other, SmartFigure) or not isinstance(other, Iterable):
-            raise TypeError(
+            raise InvalidParameterTypeError(
                 "Container SmartFigure += expects a dense iterable of Plottables or iterables of Plottables."
             )
 
         values = list(other)
-        dense = self.elements
+        dense_children: list[SmartFigure | None] = [None] * (
+            self._num_rows * self._num_cols
+        )
+        for (rows, cols), child in self._iter_child_items():
+            dense_children[rows.start * self._num_cols + cols.start] = child
         for index, value in enumerate(values):
-            if index >= len(dense) or value is None:
+            if index >= len(dense_children) or value is None:
                 continue
-            child = dense[index]
+            child = dense_children[index]
             if child is None:
                 continue
             if isinstance(value, SmartFigure):
-                raise TypeError(
+                raise InvalidParameterTypeError(
                     "Container SmartFigure += does not accept SmartFigures."
                 )
             child += value
@@ -1686,18 +1760,25 @@ class SmartFigure:
         for span, child in self._iter_child_items():
             self._sync_auto_child_projection(span, child)
 
-    def _normalize_leaf_rhs(
-        self, value: Plottable | Iterable[Plottable | None]
-    ) -> list[Plottable]:
+    def _normalize_leaf_rhs(self, value: Any) -> list[Plottable]:
         if isinstance(value, Plottable):
             return [value]
-        if isinstance(value, SmartFigure) or not SmartFigure._is_iterable_of_plottables(
-            value
+        if isinstance(value, (str, bytes, SmartFigure)) or not isinstance(
+            value, Iterable
         ):
-            raise TypeError(
+            raise InvalidParameterTypeError(
                 "Leaf contents must be Plottables or iterables of Plottables."
             )
-        return [element for element in value if element is not None]
+        elements: list[Plottable] = []
+        for element in value:
+            if element is None:
+                continue
+            if not isinstance(element, Plottable):
+                raise InvalidParameterTypeError(
+                    "Leaf contents must be Plottables or iterables of Plottables."
+                )
+            elements.append(element)
+        return elements
 
     def _get_selected_child(
         self, key: tuple[slice, slice], original_key: Any = None
@@ -1707,11 +1788,11 @@ class SmartFigure:
 
         overlapping = self._get_overlapping_elements(key)
         if len(overlapping) == 0:
-            raise GraphingException(
+            raise LayoutError(
                 f"The requested slice {original_key if original_key is not None else key} does not select a subfigure."
             )
         if len(overlapping) > 1:
-            raise GraphingException(
+            raise LayoutError(
                 f"The requested slice {original_key if original_key is not None else key} overlaps with multiple subfigures. "
                 "Cannot return a single element. Please use a more specific slice that matches only one subfigure."
             )
@@ -1745,7 +1826,7 @@ class SmartFigure:
             row, col = divmod(index, self._num_cols)
             if (row, col) in occupied:
                 if value is not None:
-                    raise GraphingException(
+                    raise LayoutError(
                         "Dense elements cannot assign a value to a cell already covered by a spanning child."
                     )
                 continue
@@ -1762,7 +1843,7 @@ class SmartFigure:
                 child = self._make_auto_child(value)
 
             if row + row_span > self._num_rows or col + col_span > self._num_cols:
-                raise GraphingException(
+                raise LayoutError(
                     "Child SmartFigure does not fit in the target dense layout."
                 )
 
@@ -1770,7 +1851,7 @@ class SmartFigure:
             for covered_row in range(row, row + row_span):
                 for covered_col in range(col, col + col_span):
                     if (covered_row, covered_col) in occupied:
-                        raise GraphingException(
+                        raise LayoutError(
                             "Dense elements contain overlapping SmartFigure spans."
                         )
                     occupied.add((covered_row, covered_col))
@@ -1806,6 +1887,7 @@ class SmartFigure:
             The same SmartFigure instance, allowing for method chaining.
         """
         self._initialize_parent_smart_figure()
+        assert self._figure is not None and self._gridspec is not None
 
         # Create an artificial axis to add padding around the figure
         # This is needed because the figure is created with h_pad=0 and w_pad=0 creating 0 padding
@@ -1841,7 +1923,9 @@ class SmartFigure:
             )
 
         if fullscreen:
-            plt.get_current_fig_manager().full_screen_toggle()
+            fig_manager = plt.get_current_fig_manager()
+            assert fig_manager is not None
+            fig_manager.full_screen_toggle()
 
         plt.show()
         if not any(
@@ -1946,7 +2030,7 @@ class SmartFigure:
         figure style, parameters and matplotlib figure and calls the :meth:`~graphinglib.SmartFigure._prepare_figure`
         method.
         """
-        if self._figure_style == INHERIT:
+        if is_inherit(self._figure_style):
             self._figure_style = get_default_style()
         try:
             file_loader = FileLoader(self._figure_style)
@@ -1958,11 +2042,11 @@ class SmartFigure:
                 if self._figure_style == "matplotlib":
                     plt.style.use("default")
                 else:
-                    plt.style.use(self._figure_style)
+                    plt.style.use(resolved(self._figure_style))
                 file_loader = FileLoader("plain")
                 self._default_params = file_loader.load()
             except OSError:
-                raise GraphingException(
+                raise StyleNotFoundError(
                     f"The figure style {self._figure_style} was not found. Please choose a different style."
                 )
 
@@ -1976,8 +2060,12 @@ class SmartFigure:
 
         # The following try/except removes lingering figures when errors occur during the plotting process
         try:
-            self._figure = plt.figure(constrained_layout=True, figsize=self._size)
-            self._figure.get_layout_engine().set(w_pad=0, h_pad=0)
+            self._figure = plt.figure(
+                constrained_layout=True, figsize=resolved(self._size)
+            )
+            layout_engine = self._figure.get_layout_engine()
+            assert isinstance(layout_engine, ConstrainedLayoutEngine)
+            layout_engine.set(w_pad=0, h_pad=0)
             self._reference_label_i = self._reference_labels_params.get(
                 "start_index", 0
             )
@@ -2037,7 +2125,7 @@ class SmartFigure:
             }
             for param_name, param_value in legend_params.items():
                 if isinstance(param_value, list):
-                    raise GraphingException(
+                    raise IncompatibleArgumentsError(
                         f"When using a general legend, the '{param_name}' property must be a single value, not a list."
                     )
 
@@ -2048,7 +2136,9 @@ class SmartFigure:
         num_cycle_colors = len(cycle_colors)
         subtitles_pad = self._subplot_p["subtitles_pad"]
 
-        self._gridspec = self._figure.add_gridspec(
+        figure = self._figure
+        assert figure is not None
+        gridspec = figure.add_gridspec(
             self._num_rows,
             self._num_cols,
             wspace=self._width_padding,
@@ -2056,10 +2146,11 @@ class SmartFigure:
             width_ratios=self._width_ratios,
             height_ratios=self._height_ratios,
         )
+        self._gridspec = gridspec
 
         if self._global_reference_label:
-            self._create_reference_label(self._figure)
-            self._figure.suptitle(" ")  # Create a blank title to reserve space
+            self._create_reference_label(figure)
+            figure.suptitle(" ")  # Create a blank title to reserve space
 
         ax = None  # keep track of the last plt.Axes object, needed for sharing axes
         default_labels, default_handles = [], []
@@ -2100,7 +2191,7 @@ class SmartFigure:
                     if param_is_none and sub_param is not None:
                         setattr(element, attr, sub_param)
 
-                subfig = self._figure.add_subfigure(self._gridspec[rows, cols])
+                subfig = figure.add_subfigure(gridspec[rows, cols])
                 element._figure = subfig  # associates the current subfigure with the nested SmartFigure
                 element._reference_label_i = self._reference_label_i
                 legend_info = element._prepare_figure(
@@ -2115,7 +2206,7 @@ class SmartFigure:
                 custom_handles += legend_info["handles"]["custom"]
 
                 if is_matplotlib_style:
-                    plt.rcParams.update(parent_rc_params)
+                    plt.rcParams.update(cast(Any, parent_rc_params))
                 else:
                     plt.rcParams.update(
                         self._default_params["rc_params"]
@@ -2130,7 +2221,7 @@ class SmartFigure:
 
             elif isinstance(element, (Plottable, list)):
                 current_elements = element if isinstance(element, list) else [element]
-                subfig = self._figure.add_subfigure(self._gridspec[rows, cols])
+                subfig = figure.add_subfigure(gridspec[rows, cols])
                 ax = subfig.add_subplot(
                     sharex=ax
                     if self._share_x
@@ -2262,7 +2353,7 @@ class SmartFigure:
                         parent_rc_params = None
                         if is_matplotlib_style:
                             parent_rc_params = plt.rcParams.copy()
-                            plt.rcParams.update(twin_axis._user_rc_dict)
+                            plt.rcParams.update(cast(Any, twin_axis._user_rc_dict))
                         else:
                             twin_axis._default_params["rc_params"].update(
                                 twin_axis._user_rc_dict
@@ -2287,7 +2378,7 @@ class SmartFigure:
                         default_handles.extend(twin_handles)
 
                         if is_matplotlib_style:
-                            plt.rcParams.update(parent_rc_params)
+                            plt.rcParams.update(cast(Any, parent_rc_params))
                         else:
                             plt.rcParams.update(
                                 self._default_params["rc_params"]
@@ -2322,6 +2413,7 @@ class SmartFigure:
                             legend_ax = self._twin_x_axis._axes
                         else:
                             legend_ax = ax
+                        assert legend_ax is not None
                         try:
                             _legend = legend_ax.legend(
                                 draggable=True,
@@ -2336,12 +2428,12 @@ class SmartFigure:
                     custom_labels, custom_handles = [], []
 
             elif element is not None:
-                raise GraphingException(
+                raise InvalidParameterTypeError(
                     f"Unsupported element type in list: {type(element).__name__}."
                 )
 
         # Set a general axis for adding general labels/title and controlling padding
-        general_ax = self._figure.add_subplot(self._gridspec[:, :], frameon=False)
+        general_ax = figure.add_subplot(gridspec[:, :], frameon=False)
         general_ax.grid(False)
         general_ax.set_facecolor((0, 0, 0, 0))
         general_ax.set_zorder(-1)
@@ -2379,7 +2471,7 @@ class SmartFigure:
         if self._annotations is not None:
             z_order = 5000
             for annotation in self._annotations:
-                annotation._plot_element(self._figure, z_order)
+                annotation._plot_element(cast(Any, figure), z_order)
                 z_order += 5
 
         # Legend parameters
@@ -2397,12 +2489,12 @@ class SmartFigure:
             if labels and self._show_legend:
                 legend_params = self._get_legend_params(labels, handles, 0)
                 try:
-                    _legend = self._figure.legend(
+                    _legend = figure.legend(
                         **legend_params,
                         draggable=True,
                     )
                 except Exception:
-                    _legend = self._figure.legend(
+                    _legend = figure.legend(
                         **legend_params,
                     )
                 _legend.set_zorder(10000)
@@ -2418,7 +2510,7 @@ class SmartFigure:
         self._subplot_p = {}  # clear the ListOrItem subplot parameters to free memory
         return legend_info
 
-    def _fill_per_subplot_params(self) -> dict[str, Any]:
+    def _fill_per_subplot_params(self) -> None:
         """
         Fills the _subplot_p dictionary with parameters that can be broadcasted to all subplots in the
         :class:`~graphinglib.SmartFigure`. If a parameter is given as a single value, it is broadcasted to all
@@ -2429,7 +2521,7 @@ class SmartFigure:
         blank_figure = (
             SmartFigure()
         )  # create a blank SmartFigure to get the default parameter values
-        subplot_p = {
+        defaults: dict[str, Any] = {
             "x_lim": blank_figure._x_lim,
             "y_lim": blank_figure._y_lim,
             "log_scale_x": blank_figure._log_scale_x,
@@ -2457,14 +2549,15 @@ class SmartFigure:
             "subtitles_pad": None,
         }
 
-        for param, default_value in subplot_p.items():
+        subplot_p: dict[str, list[Any]] = {}
+        for param, default_value in defaults.items():
             if param[-3:] == "pad":
                 value = self._pad_params.get(param)
             else:
                 value = getattr(self, f"_{param}")
             if isinstance(value, list):
                 if len(value) > self_length:
-                    raise GraphingException(
+                    raise InvalidParameterError(
                         f"Number of {param} values ({len(value)}) must not exceed the number of subfigures "
                         f"({self_length})."
                     )
@@ -2525,9 +2618,9 @@ class SmartFigure:
         tolerance = 0.3  # allowed difference between axes to consider them to be in the same column
         if self._share_x and self._num_rows > 1:
             try:
-                plot_axes = self._get_all_axes_recursive(
-                    self._figure
-                )  # gives all the axes in the figure
+                figure = self._figure
+                assert figure is not None
+                plot_axes = self._get_all_axes_recursive(figure)
                 if len(plot_axes) <= 1:
                     return
 
@@ -2561,12 +2654,12 @@ class SmartFigure:
                     for ax in group:
                         current_pos = ax.get_position()
                         ax.set_position(
-                            [
+                            (
                                 rightmost_left_edge,
                                 current_pos.y0,
                                 aligned_size,
                                 current_pos.height,
-                            ]
+                            )
                         )
 
             except Exception:
@@ -2582,19 +2675,19 @@ class SmartFigure:
         for inheritance to allow each SmartFigure class to customize the ticks their way.
         """
         # Handle x-axis ticks
-        if self._ticks.get("x_ticks") is not None:
+        x_ticks = self._ticks.get("x_ticks")
+        if x_ticks is not None:
             x_labels = self._ticks.get("x_tick_labels")
             if callable(x_labels):
                 # Apply the callable to each tick
-                x_labels = [x_labels(tick) for tick in self._ticks.get("x_ticks")]
-            ax.set_xticks(self._ticks.get("x_ticks"), x_labels)
+                x_labels = [x_labels(tick) for tick in x_ticks]
+            ax.set_xticks(x_ticks, x_labels)
 
         ax.tick_params(axis="x", which="major", **self._tick_params["x major"])
 
-        if self._ticks.get("x_tick_spacing") is not None:
-            ax.xaxis.set_major_locator(
-                ticker.MultipleLocator(self._ticks.get("x_tick_spacing"))
-            )
+        x_tick_spacing = self._ticks.get("x_tick_spacing")
+        if x_tick_spacing is not None:
+            ax.xaxis.set_major_locator(ticker.MultipleLocator(x_tick_spacing))
             # If a callable is provided for x_tick_labels, apply it with a FuncFormatter
             x_labels = self._ticks.get("x_tick_labels")
             if callable(x_labels):
@@ -2603,19 +2696,19 @@ class SmartFigure:
                 )
 
         # Handle y-axis ticks
-        if self._ticks.get("y_ticks") is not None:
+        y_ticks = self._ticks.get("y_ticks")
+        if y_ticks is not None:
             y_labels = self._ticks.get("y_tick_labels")
             if callable(y_labels):
                 # Apply the callable to each tick
-                y_labels = [y_labels(tick) for tick in self._ticks.get("y_ticks")]
-            ax.set_yticks(self._ticks.get("y_ticks"), y_labels)
+                y_labels = [y_labels(tick) for tick in y_ticks]
+            ax.set_yticks(y_ticks, y_labels)
 
         ax.tick_params(axis="y", which="major", **self._tick_params["y major"])
 
-        if self._ticks.get("y_tick_spacing") is not None:
-            ax.yaxis.set_major_locator(
-                ticker.MultipleLocator(self._ticks.get("y_tick_spacing"))
-            )
+        y_tick_spacing = self._ticks.get("y_tick_spacing")
+        if y_tick_spacing is not None:
+            ax.yaxis.set_major_locator(ticker.MultipleLocator(y_tick_spacing))
             # If a callable is provided for y_tick_labels, apply it with a FuncFormatter
             y_labels = self._ticks.get("y_tick_labels")
             if callable(y_labels):
@@ -2623,21 +2716,21 @@ class SmartFigure:
                     ticker.FuncFormatter(lambda y, pos: y_labels(y))
                 )
 
-        if self._ticks.get("minor_x_ticks") is not None:
-            ax.set_xticks(self._ticks.get("minor_x_ticks"), minor=True)
+        minor_x_ticks = self._ticks.get("minor_x_ticks")
+        if minor_x_ticks is not None:
+            ax.set_xticks(minor_x_ticks, minor=True)
         ax.tick_params(axis="x", which="minor", **self._tick_params["x minor"])
-        if self._ticks.get("minor_x_tick_spacing") is not None:
-            ax.xaxis.set_minor_locator(
-                ticker.MultipleLocator(self._ticks.get("minor_x_tick_spacing"))
-            )
+        minor_x_tick_spacing = self._ticks.get("minor_x_tick_spacing")
+        if minor_x_tick_spacing is not None:
+            ax.xaxis.set_minor_locator(ticker.MultipleLocator(minor_x_tick_spacing))
 
-        if self._ticks.get("minor_y_ticks") is not None:
-            ax.set_yticks(self._ticks.get("minor_y_ticks"), minor=True)
+        minor_y_ticks = self._ticks.get("minor_y_ticks")
+        if minor_y_ticks is not None:
+            ax.set_yticks(minor_y_ticks, minor=True)
         ax.tick_params(axis="y", which="minor", **self._tick_params["y minor"])
-        if self._ticks.get("minor_y_tick_spacing") is not None:
-            ax.yaxis.set_minor_locator(
-                ticker.MultipleLocator(self._ticks.get("minor_y_tick_spacing"))
-            )
+        minor_y_tick_spacing = self._ticks.get("minor_y_tick_spacing")
+        if minor_y_tick_spacing is not None:
+            ax.yaxis.set_minor_locator(ticker.MultipleLocator(minor_y_tick_spacing))
 
         # Remove ticks
         if self._subplot_p["remove_x_ticks"][subplot_i]:
@@ -2708,13 +2801,12 @@ class SmartFigure:
         else:
             raise ValueError("Target must be either Axes, Figure or SubFigure.")
 
+        assert self._reference_label_i is not None
         letter = ascii_lowercase[self._reference_label_i]
         formatted_letter = self._reference_labels_params.get(
             "format", lambda le: f"{le})"
         )(letter)
-        reflabel_params = {
-            k: v for k, v in self._reference_labels_params.items() if v != INHERIT
-        }
+        reflabel_params = strip_inherit(self._reference_labels_params)
         target.text(
             x=0,
             y=1,
@@ -2735,23 +2827,25 @@ class SmartFigure:
         Gives the translation to apply to the reference label to position it correctly relative to an Axes, Figure or
         SubFigure. The translation varies depending on the location of the reference label.
         """
+        figure = self._figure
+        assert figure is not None
         if isinstance(target, Axes):
+            assert subplot_i is not None
             reflabel_loc = self._subplot_p["reference_labels_loc"][subplot_i]
             if isinstance(reflabel_loc, tuple):
-                return ScaledTranslation(*reflabel_loc, self._figure.dpi_scale_trans)
+                x_offset, y_offset = reflabel_loc
+                return ScaledTranslation(x_offset, y_offset, figure.dpi_scale_trans)
             elif reflabel_loc == "outside":
-                return ScaledTranslation(-5 / 72, 10 / 72, self._figure.dpi_scale_trans)
+                return ScaledTranslation(-5 / 72, 10 / 72, figure.dpi_scale_trans)
             elif reflabel_loc == "inside":
-                return ScaledTranslation(
-                    10 / 72, -15 / 72, self._figure.dpi_scale_trans
-                )
+                return ScaledTranslation(10 / 72, -15 / 72, figure.dpi_scale_trans)
             else:
-                raise ValueError(
+                raise InvalidParameterError(
                     "Invalid reference label location. Please specify either 'inside' or 'outside'."
                 )
 
         elif isinstance(target, (Figure, SubFigure)):
-            return ScaledTranslation(7 / 72, -10 / 72, self._figure.dpi_scale_trans)
+            return ScaledTranslation(7 / 72, -10 / 72, figure.dpi_scale_trans)
         else:
             raise ValueError(
                 "Target must be either an Axes, Figure or SubFigure instance."
@@ -2854,15 +2948,15 @@ class SmartFigure:
                 break
             except KeyError as e:
                 if try_i == 1:
-                    raise GraphingException(
+                    raise StyleFileError(
                         f"There was an error auto updating your {self._figure_style} style file following the recent "
                         "GraphingLib update. Please notify the developers by creating an issue on GraphingLib's GitHub"
                         " page. In the meantime, you can manually add the following parameter to your "
                         f"{self._figure_style} style file:\n {e.args[0]}."
-                    )
-                file_updater = FileUpdater(self._figure_style)
+                    ) from e
+                file_updater = FileUpdater(resolved(self._figure_style))
                 file_updater.update()
-                file_loader = FileLoader(self._figure_style)
+                file_loader = FileLoader(resolved(self._figure_style))
                 new_defaults = file_loader.load()
                 self._default_params.update(
                     (k, v)
@@ -2893,8 +2987,8 @@ class SmartFigure:
             if self._figure_style == "matplotlib":
                 plt.style.use("default")
             else:
-                plt.style.use(self._figure_style)
-            plt.rcParams.update(self._user_rc_dict)
+                plt.style.use(resolved(self._figure_style))
+            plt.rcParams.update(cast(Any, self._user_rc_dict))
         else:
             params = self._default_params["rc_params"]
             try:
@@ -2906,7 +3000,7 @@ class SmartFigure:
 
     def set_rc_params(
         self,
-        rc_params_dict: dict[str, str | float] = {},
+        rc_params_dict: dict[str, Any] = {},
         reset: bool = False,
     ) -> Self:
         """
@@ -2917,7 +3011,7 @@ class SmartFigure:
 
         Parameters
         ----------
-        rc_params_dict : dict[str, str | float], optional
+        rc_params_dict : dict[str, Any], optional
             Dictionary of rc parameters to update.
             Defaults to empty dictionary.
         reset : bool, optional
@@ -3040,8 +3134,7 @@ class SmartFigure:
         (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
         values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
         """
-        if color_cycle is not None:
-            color_cycle = plt.cycler(color=color_cycle)
+        prop_cycle = plt.cycler(color=color_cycle) if color_cycle is not None else None
 
         rc_params_dict = {
             "figure.facecolor": figure_face_color,
@@ -3049,7 +3142,7 @@ class SmartFigure:
             "axes.edgecolor": axes_edge_color,
             "axes.labelpad": axes_label_pad,
             "axes.linewidth": axes_line_width,
-            "axes.prop_cycle": color_cycle,
+            "axes.prop_cycle": prop_cycle,
             "legend.facecolor": legend_face_color,
             "legend.edgecolor": legend_edge_color,
             "legend.fontsize": legend_font_size,
@@ -3076,10 +3169,12 @@ class SmartFigure:
 
         if hidden_spines is not None:
             if not isinstance(hidden_spines, Iterable):
-                raise TypeError("hidden_spines must be an iterable of spine names.")
+                raise InvalidParameterTypeError(
+                    "hidden_spines must be an iterable of spine names."
+                )
             for spine in hidden_spines:
                 if spine not in ["right", "left", "top", "bottom"]:
-                    raise ValueError(
+                    raise InvalidParameterError(
                         f"Invalid spine name: {spine}. Must be one of 'right', 'left', 'top' or 'bottom'."
                     )
             self._hidden_spines = hidden_spines
@@ -3140,6 +3235,21 @@ class SmartFigure:
         Self
             For convenience, the same SmartFigure with the updated ticks.
         """
+        # Normalize iterable tick/label inputs to lists so their lengths can be compared
+        # and the values reused (a bare iterator would be exhausted after the first pass).
+        if x_ticks is not None:
+            x_ticks = list(x_ticks)
+        if y_ticks is not None:
+            y_ticks = list(y_ticks)
+        if minor_x_ticks is not None:
+            minor_x_ticks = list(minor_x_ticks)
+        if minor_y_ticks is not None:
+            minor_y_ticks = list(minor_y_ticks)
+        if x_tick_labels is not None and not callable(x_tick_labels):
+            x_tick_labels = list(x_tick_labels)
+        if y_tick_labels is not None and not callable(y_tick_labels):
+            y_tick_labels = list(y_tick_labels)
+
         # Check if tick labels are provided without ticks or spacing
         x_has_spacing = x_tick_spacing is not None
         y_has_spacing = y_tick_spacing is not None
@@ -3156,7 +3266,7 @@ class SmartFigure:
                 and not (y_has_spacing and y_callable),
             ]
         ):
-            raise GraphingException(
+            raise IncompatibleArgumentsError(
                 "Ticks position must be specified when ticks labels are specified, "
                 "unless a callable is provided with tick spacing."
             )
@@ -3169,7 +3279,7 @@ class SmartFigure:
                 (minor_y_ticks is not None) and (minor_y_tick_spacing is not None),
             ]
         ):
-            raise GraphingException(
+            raise IncompatibleArgumentsError(
                 "Tick spacing and tick positions cannot be set simultaneously."
             )
 
@@ -3179,7 +3289,7 @@ class SmartFigure:
             and not callable(x_tick_labels)
         ):
             if len(x_ticks) != len(x_tick_labels):
-                raise GraphingException(
+                raise IncompatibleArgumentsError(
                     f"Number of x ticks ({len(x_ticks)}) and number of x tick labels "
                     f"({len(x_tick_labels)}) must be the same."
                 )
@@ -3189,7 +3299,7 @@ class SmartFigure:
             and not callable(y_tick_labels)
         ):
             if len(y_ticks) != len(y_tick_labels):
-                raise GraphingException(
+                raise IncompatibleArgumentsError(
                     f"Number of y ticks ({len(y_ticks)}) and number of y tick labels "
                     f"({len(y_tick_labels)}) must be the same."
                 )
@@ -3219,7 +3329,7 @@ class SmartFigure:
     def set_tick_params(
         self,
         axis: Literal["x", "y", "both"] | None = "both",
-        which: Literal["major", "minor", "both"] | None = "major",
+        which: Literal["major", "minor", "both"] = "major",
         reset: bool = False,
         direction: Literal["in", "out", "inout"] | None = None,
         length: float | None = None,
@@ -3399,7 +3509,7 @@ class SmartFigure:
             "grid.linestyle": line_style,
             "grid.linewidth": line_width,
         }
-        rc_params_dict = {k: v for k, v in rc_params_dict.items() if v != INHERIT}
+        rc_params_dict = strip_inherit(rc_params_dict)
         self.set_rc_params(rc_params_dict)
         return self
 
@@ -3442,7 +3552,9 @@ class SmartFigure:
             self._custom_legend_handles += [el.handle for el in elements]
             self._custom_legend_labels += [el.label for el in elements]
         elif elements is not None:
-            raise TypeError("Elements must be an iterable of LegendElement objects.")
+            raise InvalidParameterTypeError(
+                "Elements must be an iterable of LegendElement objects."
+            )
 
         return self
 
@@ -3482,7 +3594,7 @@ class SmartFigure:
         """
         for pad_param in [x_label_pad, y_label_pad, title_pad]:
             if pad_param is not None and not isinstance(pad_param, (int, float)):
-                raise TypeError(
+                raise InvalidParameterTypeError(
                     f"Padding parameters must be of type int or float, got {type(pad_param).__name__}."
                 )
         for sub_pad_param in [sub_x_labels_pad, sub_y_labels_pad, subtitles_pad]:
@@ -3492,7 +3604,7 @@ class SmartFigure:
                     isinstance(p, (int, float, type(None))) for p in sub_pad_param
                 )
             ):
-                raise TypeError(
+                raise InvalidParameterTypeError(
                     "Subfigure padding parameters must be an iterable of ints or floats."
                 )
 
@@ -3521,7 +3633,7 @@ class SmartFigure:
         start_index: int | None = None,
         font_size: float | Inherit | None = None,
         font_weight: str | Inherit | None = None,
-        format: Callable = None,
+        format: Callable | None = None,
     ) -> Self:
         """
         Sets advanced parameters for the reference labels that can be added to the subplots.
@@ -3565,14 +3677,16 @@ class SmartFigure:
         """
         if start_index is not None:
             if not isinstance(start_index, int):
-                raise TypeError("start_index must be an integer.")
+                raise InvalidParameterTypeError("start_index must be an integer.")
             if start_index < 0:
-                raise ValueError("start_index must be greater than or equal to 0.")
+                raise InvalidParameterError(
+                    "start_index must be greater than or equal to 0."
+                )
         if format is not None:
             try:
                 format("a")
             except Exception as e:
-                raise TypeError(
+                raise InvalidParameterTypeError(
                     "format must be a callable that takes a single str argument and returns a str."
                 ) from e
 
@@ -3633,11 +3747,11 @@ class SmartFigure:
             :attr:`~graphinglib.SmartFigure.twin_x_axis` or :attr:`~graphinglib.SmartFigure.twin_y_axis` properties.
         """
         if is_y and self._twin_y_axis is not None:
-            raise GraphingException(
+            raise InvalidOperationError(
                 "A twin y-axis already exists for this SmartFigure."
             )
         elif not is_y and self._twin_x_axis is not None:
-            raise GraphingException(
+            raise InvalidOperationError(
                 "A twin x-axis already exists for this SmartFigure."
             )
 
@@ -3864,8 +3978,8 @@ class SmartFigureWCS(SmartFigure):
         y_label: str | None = None,
         size: tuple[float, float] | Inherit = INHERIT,
         title: str | None = None,
-        x_lim: ListOrItem[tuple[float, float] | None] = None,
-        y_lim: ListOrItem[tuple[float, float] | None] = None,
+        x_lim: ListOrItem[tuple[float | None, float | None] | None] = None,
+        y_lim: ListOrItem[tuple[float | None, float | None] | None] = None,
         sub_x_labels: Iterable[str] | None = None,
         sub_y_labels: Iterable[str] | None = None,
         subtitles: Iterable[str] | None = None,
@@ -3883,10 +3997,10 @@ class SmartFigureWCS(SmartFigure):
         reference_labels_loc: ListOrItem[
             Literal["inside", "outside"] | tuple[float, float]
         ] = "outside",
-        width_padding: float = None,
-        height_padding: float = None,
-        width_ratios: ArrayLike = None,
-        height_ratios: ArrayLike = None,
+        width_padding: float | None = None,
+        height_padding: float | None = None,
+        width_ratios: ArrayLike | None = None,
+        height_ratios: ArrayLike | None = None,
         share_x: bool = False,
         share_y: bool = False,
         general_legend: bool = False,
@@ -3897,8 +4011,7 @@ class SmartFigureWCS(SmartFigure):
         twin_y_axis: SmartTwinAxis | None = None,
         figure_style: str | Inherit = INHERIT,
         elements: Plottable
-        | Iterable[Plottable | SmartFigure | None]
-        | Iterable[Iterable[Plottable | None]] = [],
+        | Iterable[Plottable | SmartFigure | None | Iterable[Plottable | None]] = [],
         annotations: Iterable[Text] | None = None,
     ) -> None:
         _require_astropy("SmartFigureWCS")
@@ -3961,7 +4074,7 @@ class SmartFigureWCS(SmartFigure):
     def projection(self, value: ListOrItem[WCS]) -> None:
         for v in value if isinstance(value, list) else [value]:
             if not isinstance(v, WCS):
-                raise GraphingException(
+                raise InvalidParameterTypeError(
                     "The projection of a SmartFigureWCS must be a WCS object."
                 )
         self._projection = value
@@ -3978,7 +4091,7 @@ class SmartFigureWCS(SmartFigure):
         SmartFigure.
         """
         if isinstance(self._projection, list) and len(self._projection) != len(self):
-            raise GraphingException(
+            raise InvalidParameterError(
                 f"Number of WCS projections ({len(self._projection)}) must be equal to the number of subfigures "
                 f"({len(self)})."
             )
@@ -3993,7 +4106,8 @@ class SmartFigureWCS(SmartFigure):
         Customizes the ticks of the specified Axes according to the SmartFigure's tick parameters. This method is useful
         for inheritance to allow each SmartFigure class to customize the ticks their way.
         """
-        x_axis, y_axis = ax.coords
+        # ax is a WCSAxes here; its `.coords` accessor is not in matplotlib's Axes stub.
+        x_axis, y_axis = cast(Any, ax).coords
         x_axis.set_auto_axislabel(False)
         y_axis.set_auto_axislabel(False)
 
@@ -4090,7 +4204,9 @@ class SmartFigureWCS(SmartFigure):
             y_axis.set_ticks_visible(False)
             y_axis.set_ticklabel_visible(False)
 
-    def set_ticks(
+    # WCSAxes uses Astropy Quantity ticks and WCS-specific tick controls, so this
+    # intentionally is not a behavioral substitute for SmartFigure.set_ticks.
+    def set_ticks(  # ty: ignore[invalid-method-override]
         self,
         reset: bool = False,
         x_ticks: list[Quantity] | None = None,
@@ -4157,20 +4273,23 @@ class SmartFigureWCS(SmartFigure):
         Self
             For convenience, the same SmartFigure with the updated ticks.
         """
-        super().set_ticks(
-            reset=reset,
-            x_ticks=x_ticks,
-            y_ticks=y_ticks,
-            x_tick_spacing=x_tick_spacing,
-            y_tick_spacing=y_tick_spacing,
-        )
+        if any(
+            [
+                (x_ticks is not None) and (x_tick_spacing is not None),
+                (y_ticks is not None) and (y_tick_spacing is not None),
+            ]
+        ):
+            raise IncompatibleArgumentsError(
+                "Tick spacing and tick positions cannot be set simultaneously."
+            )
+
         if any(
             [
                 (x_ticks is not None) and (number_of_x_ticks is not None),
                 (y_ticks is not None) and (number_of_y_ticks is not None),
             ]
         ):
-            raise GraphingException(
+            raise IncompatibleArgumentsError(
                 "Number of ticks and tick positions cannot be set simultaneously."
             )
 
@@ -4180,11 +4299,18 @@ class SmartFigureWCS(SmartFigure):
                 (y_tick_spacing is not None) and (number_of_y_ticks is not None),
             ]
         ):
-            raise GraphingException(
+            raise IncompatibleArgumentsError(
                 "Number of ticks and tick spacing cannot be set simultaneously."
             )
 
+        if reset:
+            self._ticks.clear()
+
         params = [
+            "x_ticks",
+            "y_ticks",
+            "x_tick_spacing",
+            "y_tick_spacing",
             "number_of_x_ticks",
             "number_of_y_ticks",
             "x_tick_formatter",
@@ -4199,7 +4325,9 @@ class SmartFigureWCS(SmartFigure):
 
         return self
 
-    def set_tick_params(
+    # WCSAxes cannot express SmartFigure's major/minor split; minor tick length
+    # is the only independent minor-tick control exposed by Astropy.
+    def set_tick_params(  # ty: ignore[invalid-method-override]
         self,
         axis: Literal["x", "y", "both"] | None = "both",
         reset: bool = False,
@@ -4319,7 +4447,9 @@ class SmartFigureWCS(SmartFigure):
                 self._tick_params[f"{axis_i} minor"]["length"] = minor_length
         return self
 
-    def set_grid(
+    # WCSAxes grids only support major grid lines, so SmartFigure's which_x /
+    # which_y controls are intentionally absent from this API.
+    def set_grid(  # ty: ignore[invalid-method-override]
         self,
         visible_x: bool = True,
         visible_y: bool = True,
@@ -4434,14 +4564,16 @@ class SmartTwinAxis:
         self.elements = elements
 
         self._ticks = {}
-        self._tick_params = {"major": {}, "minor": {}}
+        self._tick_params: dict[str, dict[str, Any]] = {"major": {}, "minor": {}}
 
         self._edge_color = None
         self._line_width = None
         self._hide_spine = None
-        self._user_rc_dict = {}
+        self._user_rc_dict: dict[str, Any] = {}
         self._default_params = {}
-        self._axes = None  # used for keeping a reference to the Axes which enables drawing the legend on top
+        self._axes: Axes | None = (
+            None  # used for keeping a reference to the Axes which enables drawing the legend on top
+        )
 
     @property
     def label(self) -> str | None:
@@ -4459,9 +4591,9 @@ class SmartTwinAxis:
     def axis_lim(self, value: tuple[float, float] | None) -> None:
         if value is not None:
             if not isinstance(value, tuple):
-                raise TypeError("axis_lim must be a tuple.")
+                raise InvalidParameterTypeError("axis_lim must be a tuple.")
             if len(value) != 2:
-                raise ValueError("axis_lim must be a tuple of length 2.")
+                raise InvalidParameterError("axis_lim must be a tuple of length 2.")
         self._axis_lim = value
 
     @property
@@ -4471,7 +4603,7 @@ class SmartTwinAxis:
     @log_scale.setter
     def log_scale(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("log_scale must be a boolean.")
+            raise InvalidParameterTypeError("log_scale must be a boolean.")
         self._log_scale = value
 
     @property
@@ -4481,7 +4613,7 @@ class SmartTwinAxis:
     @remove_axes.setter
     def remove_axes(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("remove_axes must be a bool.")
+            raise InvalidParameterTypeError("remove_axes must be a bool.")
         self._remove_axes = value
 
     @property
@@ -4491,7 +4623,7 @@ class SmartTwinAxis:
     @remove_ticks.setter
     def remove_ticks(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("remove_ticks must be a bool.")
+            raise InvalidParameterTypeError("remove_ticks must be a bool.")
         self._remove_ticks = value
 
     @property
@@ -4501,7 +4633,7 @@ class SmartTwinAxis:
     @invert_axis.setter
     def invert_axis(self, value: bool) -> None:
         if not isinstance(value, bool):
-            raise TypeError("invert_axis must be a bool.")
+            raise InvalidParameterTypeError("invert_axis must be a bool.")
         self._invert_axis = value
 
     @property
@@ -4537,7 +4669,9 @@ class SmartTwinAxis:
             The element at the specified key. If there is no element at the given key, an empty list is returned.
         """
         if not isinstance(key, int):
-            raise TypeError(f"Key must be an integer, not {type(key).__name__}.")
+            raise InvalidParameterTypeError(
+                f"Key must be an integer, not {type(key).__name__}."
+            )
         key_ = key + len(self._elements) if key < 0 else key
         if key_ >= len(self._elements) or key_ < 0:
             raise IndexError(
@@ -4597,7 +4731,9 @@ class SmartTwinAxis:
             For convenience, the same :class:`~graphinglib.SmartTwinAxis` with the added elements.
         """
         if not SmartFigure._is_iterable_of_plottables(elements):
-            raise TypeError("Elements must be an iterable of Plottable objects.")
+            raise InvalidParameterTypeError(
+                "Elements must be an iterable of Plottable objects."
+            )
         self._elements += [el for el in elements if el is not None]
         return self
 
@@ -4712,7 +4848,7 @@ class SmartTwinAxis:
                     continue
                 z_order += 5
             elif element is not None:
-                raise GraphingException(
+                raise InvalidParameterTypeError(
                     f"Unsupported element type: {type(element).__name__}."
                 )
 
@@ -4725,34 +4861,34 @@ class SmartTwinAxis:
         """
         Customizes the ticks of the specified Axes according to the SmartTwinAxis's tick parameters.
         """
+        axes = self._axes
+        assert axes is not None
         if is_y:
             ax_set_ticks, axis_str, ax_axis = (
-                self._axes.set_yticks,
+                axes.set_yticks,
                 "y",
-                self._axes.yaxis,
+                axes.yaxis,
             )
         else:
             ax_set_ticks, axis_str, ax_axis = (
-                self._axes.set_xticks,
+                axes.set_xticks,
                 "x",
-                self._axes.xaxis,
+                axes.xaxis,
             )
 
-        if self._ticks.get("ticks") is not None:
+        ticks = self._ticks.get("ticks")
+        if ticks is not None:
             tick_labels = self._ticks.get("tick_labels")
             if callable(tick_labels):
                 # Apply the callable to each tick
-                tick_labels = [tick_labels(tick) for tick in self._ticks.get("ticks")]
-            ax_set_ticks(self._ticks.get("ticks"), tick_labels)
+                tick_labels = [tick_labels(tick) for tick in ticks]
+            ax_set_ticks(ticks, tick_labels)
 
-        self._axes.tick_params(
-            axis=axis_str, which="major", **self._tick_params["major"]
-        )
+        axes.tick_params(axis=axis_str, which="major", **self._tick_params["major"])
 
-        if self._ticks.get("tick_spacing") is not None:
-            ax_axis.set_major_locator(
-                ticker.MultipleLocator(self._ticks.get("tick_spacing"))
-            )
+        tick_spacing = self._ticks.get("tick_spacing")
+        if tick_spacing is not None:
+            ax_axis.set_major_locator(ticker.MultipleLocator(tick_spacing))
             # If a callable is provided for tick_labels, apply it with a FuncFormatter
             tick_labels = self._ticks.get("tick_labels")
             if callable(tick_labels):
@@ -4760,19 +4896,17 @@ class SmartTwinAxis:
                     ticker.FuncFormatter(lambda pos, x: tick_labels(pos))
                 )
 
-        if self._ticks.get("minor_ticks") is not None:
-            ax_set_ticks(self._ticks.get("minor_ticks"), minor=True)
-        self._axes.tick_params(
-            axis=axis_str, which="minor", **self._tick_params["minor"]
-        )
-        if self._ticks.get("minor_tick_spacing") is not None:
-            ax_axis.set_minor_locator(
-                ticker.MultipleLocator(self._ticks.get("minor_tick_spacing"))
-            )
+        minor_ticks = self._ticks.get("minor_ticks")
+        if minor_ticks is not None:
+            ax_set_ticks(minor_ticks, minor=True)
+        axes.tick_params(axis=axis_str, which="minor", **self._tick_params["minor"])
+        minor_tick_spacing = self._ticks.get("minor_tick_spacing")
+        if minor_tick_spacing is not None:
+            ax_axis.set_minor_locator(ticker.MultipleLocator(minor_tick_spacing))
 
         # Remove ticks
         if self._remove_ticks:
-            self._axes.tick_params(
+            axes.tick_params(
                 axis_str,
                 which="both",
                 labelbottom=False,
@@ -4786,7 +4920,9 @@ class SmartTwinAxis:
             )
 
     def _fill_in_missing_params(
-        self, element: SmartFigure | Plottable, figure_style: str | Inherit
+        self,
+        element: SmartFigure | SmartTwinAxis | Plottable,
+        figure_style: str | Inherit,
     ) -> list[str]:
         """
         Fills in the missing parameters for a :class:`~graphinglib.Plottable` from the parent's ``figure_style``.
@@ -4803,15 +4939,15 @@ class SmartTwinAxis:
                 break
             except KeyError as e:
                 if try_i == 1:
-                    raise GraphingException(
+                    raise StyleFileError(
                         f"There was an error auto updating your {figure_style} style file following the recent "
                         "GraphingLib update. Please notify the developers by creating an issue on GraphingLib's GitHub"
                         " page. In the meantime, you can manually add the following parameter to your "
                         f"{figure_style} style file:\n {e.args[0]}."
-                    )
-                file_updater = FileUpdater(figure_style)
+                    ) from e
+                file_updater = FileUpdater(resolved(figure_style))
                 file_updater.update()
-                file_loader = FileLoader(figure_style)
+                file_loader = FileLoader(resolved(figure_style))
                 new_defaults = file_loader.load()
                 self._default_params.update(
                     (k, v)
@@ -4821,7 +4957,7 @@ class SmartTwinAxis:
         return params_to_reset
 
     def _reset_params_to_default(
-        self, element: Plottable, params_to_reset: list[str]
+        self, element: Plottable | SmartTwinAxis, params_to_reset: list[str]
     ) -> None:
         """
         Resets the parameters that were set to default in the :meth:`~graphinglib.SmartTwinAxis._fill_in_missing_params`
@@ -4832,7 +4968,7 @@ class SmartTwinAxis:
 
     def set_rc_params(
         self,
-        rc_params_dict: dict[str, str | float] = {},
+        rc_params_dict: dict[str, Any] = {},
         reset: bool = False,
     ) -> Self:
         """
@@ -4843,7 +4979,7 @@ class SmartTwinAxis:
 
         Parameters
         ----------
-        rc_params_dict : dict[str, str | float], optional
+        rc_params_dict : dict[str, Any], optional
             Dictionary of rc parameters to update.
             Defaults to empty dictionary.
         reset : bool, optional
@@ -4948,7 +5084,7 @@ class SmartTwinAxis:
 
         if hide_spine is not None:
             if not isinstance(hide_spine, bool):
-                raise TypeError(
+                raise InvalidParameterTypeError(
                     "hide_spine must be a boolean or an iterable of spine names."
                 )
             self._hide_spine = hide_spine
@@ -4995,6 +5131,15 @@ class SmartTwinAxis:
         Self
             For convenience, the same SmartTwinAxis with the updated ticks.
         """
+        # Normalize iterable tick/label inputs to lists so their lengths can be compared
+        # and the values reused (a bare iterator would be exhausted after the first pass).
+        if ticks is not None:
+            ticks = list(ticks)
+        if minor_ticks is not None:
+            minor_ticks = list(minor_ticks)
+        if tick_labels is not None and not callable(tick_labels):
+            tick_labels = list(tick_labels)
+
         # Check if tick labels are provided without ticks or spacing
         has_spacing = tick_spacing is not None
         is_callable = callable(tick_labels)
@@ -5004,7 +5149,7 @@ class SmartTwinAxis:
             and ticks is None
             and not (has_spacing and is_callable)
         ):
-            raise GraphingException(
+            raise IncompatibleArgumentsError(
                 "Ticks position must be specified when ticks labels are specified, "
                 "unless a callable is provided with tick spacing."
             )
@@ -5015,13 +5160,13 @@ class SmartTwinAxis:
                 (minor_ticks is not None) and (minor_tick_spacing is not None),
             ]
         ):
-            raise GraphingException(
+            raise IncompatibleArgumentsError(
                 "Tick spacing and tick positions cannot be set simultaneously."
             )
 
         if ticks is not None and tick_labels is not None and not callable(tick_labels):
             if len(ticks) != len(tick_labels):
-                raise GraphingException(
+                raise IncompatibleArgumentsError(
                     f"Number of ticks ({len(ticks)}) and number of tick labels ({len(tick_labels)}) must be the same."
                 )
 
@@ -5044,7 +5189,7 @@ class SmartTwinAxis:
 
     def set_tick_params(
         self,
-        which: Literal["major", "minor", "both"] | None = "major",
+        which: Literal["major", "minor", "both"] = "major",
         reset: bool = False,
         direction: Literal["in", "out", "inout"] | None = None,
         length: float | None = None,

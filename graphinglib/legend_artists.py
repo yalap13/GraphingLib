@@ -11,6 +11,8 @@ from matplotlib.typing import ColorType
 from numpy import array, full_like
 from typing import Any, Literal, Optional, Protocol, Sequence, runtime_checkable
 
+from .exceptions import InvalidParameterError, InvalidParameterTypeError
+
 
 class HandlerMultipleLines(HandlerLineCollection):
     """
@@ -30,24 +32,29 @@ class HandlerMultipleLines(HandlerLineCollection):
         fontsize: float,
         trans: Transform,
     ) -> list[Line2D]:
+        assert isinstance(orig_handle, LineCollection)
         numlines = len(orig_handle.get_segments())
         xdata, _ = self.get_xdata(legend, xdescent, ydescent, width, height, fontsize)
         lines = []
         ydata = full_like(xdata, height / (numlines + 1))
+        colors = orig_handle.get_colors()
+        # get_dashes exists at runtime but is absent from matplotlib's LineCollection stub.
+        all_dashes = orig_handle.get_dashes()  # ty: ignore[unresolved-attribute]
         for i in range(numlines):
             line = Line2D(xdata, ydata * (numlines - i) - ydescent)
             self.update_prop(line, orig_handle, legend)
             try:
-                color = orig_handle.get_colors()[i]
+                color = colors[i]
             except IndexError:
-                color = orig_handle.get_colors()[0]
+                color = colors[0]
             try:
-                dashes = orig_handle.get_dashes()[i]
+                dashes = all_dashes[i]
             except IndexError:
-                dashes = orig_handle.get_dashes()[0]
+                dashes = all_dashes[0]
             if dashes[1] is not None:
                 line.set_dashes(dashes[1])
-            line.set_color(color)
+            # get_colors() elements are valid Matplotlib colors; the stub types them too loosely.
+            line.set_color(color)  # ty: ignore[invalid-argument-type]
             line.set_transform(trans)
             line.set_linewidth(2)
             lines.append(line)
@@ -72,24 +79,29 @@ class HandlerMultipleVerticalLines(HandlerLineCollection):
         fontsize: float,
         trans: Transform,
     ) -> list[Line2D]:
+        assert isinstance(orig_handle, LineCollection)
         numlines = len(orig_handle.get_segments())
         lines = []
         xdata = array([width / (numlines + 1), width / (numlines + 1)])
         ydata = array([0, height])
+        colors = orig_handle.get_colors()
+        # get_dashes exists at runtime but is absent from matplotlib's LineCollection stub.
+        all_dashes = orig_handle.get_dashes()  # ty: ignore[unresolved-attribute]
         for i in range(numlines):
             line = Line2D(xdata * (numlines - i) - xdescent, ydata - ydescent)
             self.update_prop(line, orig_handle, legend)
             try:
-                color = orig_handle.get_colors()[i]
+                color = colors[i]
             except IndexError:
-                color = orig_handle.get_colors()[0]
+                color = colors[0]
             try:
-                dashes = orig_handle.get_dashes()[i]
+                dashes = all_dashes[i]
             except IndexError:
-                dashes = orig_handle.get_dashes()[0]
+                dashes = all_dashes[0]
             if dashes[1] is not None:
                 line.set_dashes(dashes[1])
-            line.set_color(color)
+            # get_colors() elements are valid Matplotlib colors; the stub types them too loosely.
+            line.set_color(color)  # ty: ignore[invalid-argument-type]
             line.set_transform(trans)
             line.set_linewidth(2)
             lines.append(line)
@@ -147,7 +159,10 @@ class LegendElement(Protocol):
 
     @label.setter
     def label(self, value: str) -> None:
-        self._label = value
+        # Declaring _label/_alpha as protocol members would add them to this
+        # runtime_checkable protocol's isinstance check, changing its behavior for
+        # user-defined subclasses; the concrete subclasses declare them instead.
+        self._label = value  # ty: ignore[ambiguous-protocol-member]
 
     @property
     def alpha(self) -> float:
@@ -156,22 +171,22 @@ class LegendElement(Protocol):
     @alpha.setter
     def alpha(self, value: float) -> None:
         if not isinstance(value, (int, float)):
-            raise TypeError("Alpha value must be a number.")
+            raise InvalidParameterTypeError("Alpha value must be a number.")
         if not (0 <= value <= 1):
-            raise ValueError("Alpha value must be between 0 and 1.")
-        self._alpha = value
+            raise InvalidParameterError("Alpha value must be between 0 and 1.")
+        self._alpha = value  # ty: ignore[ambiguous-protocol-member]
 
-    def _color_setter(self, attr: str, value: ColorType) -> None:
+    def _color_setter(self, attr: str, value: Optional[ColorType]) -> None:
         if value is not None:
             if not is_color_like(value):
-                raise ValueError(f"'{value}' is not a valid color.")
+                raise InvalidParameterError(f"'{value}' is not a valid color.")
         setattr(self, f"_{attr}", value)
 
     def _number_setter(self, attr: str, value: float) -> None:
         if not isinstance(value, (int, float)):
-            raise TypeError(f"'{value}' is not a valid number.")
+            raise InvalidParameterTypeError(f"'{value}' is not a valid number.")
         if value < 0:
-            raise ValueError(f"'{value}' cannot be negative.")
+            raise InvalidParameterError(f"'{value}' cannot be negative.")
         setattr(self, f"_{attr}", value)
 
     def _line_style_setter(
@@ -191,14 +206,18 @@ class LegendElement(Protocol):
                 "dashdot",
                 "dotted",
             ]:
-                raise ValueError(f"'{value}' is not a valid line style.")
+                raise InvalidParameterError(f"'{value}' is not a valid line style.")
         elif isinstance(value, tuple):
             if len(value) != 2 or not all(
                 isinstance(x, (int, float)) for x in [value[0], *value[1]]
             ):
-                raise ValueError(f"'{value}' is not a valid line style tuple.")
+                raise InvalidParameterError(
+                    f"'{value}' is not a valid line style tuple."
+                )
         else:
-            raise TypeError(f"'{value}' is not a valid line style type.")
+            raise InvalidParameterTypeError(
+                f"'{value}' is not a valid line style type."
+            )
         setattr(self, f"_{attr}", value)
 
 
@@ -235,6 +254,14 @@ class LegendLine(LegendElement):
     (``"b"``), hex strings (``"#0000ff"``), grayscale strings (``"0.5"``), and RGB/RGBA tuples with
     values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
+
+    _color: ColorType
+    _gap_color: Optional[ColorType]
+    _line_width: float
+    _line_style: (
+        Literal["-", "--", "-.", ":", "solid", "dashed", "dashdot", "dotted"]
+        | tuple[float, Sequence]
+    )
 
     def __init__(
         self,
@@ -280,11 +307,11 @@ class LegendLine(LegendElement):
         self._color_setter("color", value)
 
     @property
-    def gap_color(self) -> ColorType:
+    def gap_color(self) -> Optional[ColorType]:
         return self._gap_color
 
     @gap_color.setter
-    def gap_color(self, value: ColorType) -> None:
+    def gap_color(self, value: Optional[ColorType]) -> None:
         self._color_setter("gap_color", value)
 
     @property
@@ -359,6 +386,14 @@ class LegendMarker(LegendElement):
     values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
+    _face_color: Optional[ColorType]
+    _face_color_alt: Optional[ColorType]
+    _edge_color: Optional[ColorType]
+    _edge_width: float
+    _marker_size: float
+    _marker_style: Any
+    _fill_style: Literal["full", "left", "right", "bottom", "top"]
+
     def __init__(
         self,
         label: str,
@@ -408,27 +443,27 @@ class LegendMarker(LegendElement):
         )
 
     @property
-    def face_color(self) -> ColorType:
+    def face_color(self) -> Optional[ColorType]:
         return self._face_color
 
     @face_color.setter
-    def face_color(self, value: ColorType) -> None:
+    def face_color(self, value: Optional[ColorType]) -> None:
         self._color_setter("face_color", value)
 
     @property
-    def face_color_alt(self) -> ColorType:
+    def face_color_alt(self) -> Optional[ColorType]:
         return self._face_color_alt
 
     @face_color_alt.setter
-    def face_color_alt(self, value: ColorType) -> None:
+    def face_color_alt(self, value: Optional[ColorType]) -> None:
         self._color_setter("face_color_alt", value)
 
     @property
-    def edge_color(self) -> ColorType:
+    def edge_color(self) -> Optional[ColorType]:
         return self._edge_color
 
     @edge_color.setter
-    def edge_color(self, value: ColorType) -> None:
+    def edge_color(self, value: Optional[ColorType]) -> None:
         self._color_setter("edge_color", value)
 
     @property
@@ -456,7 +491,7 @@ class LegendMarker(LegendElement):
         try:
             MarkerStyle(value)  # Validate the marker style
         except Exception:
-            raise ValueError(f"'{value}' is not a valid marker style.")
+            raise InvalidParameterError(f"'{value}' is not a valid marker style.")
         self._marker_style = value
 
     @property
@@ -469,7 +504,7 @@ class LegendMarker(LegendElement):
     ) -> None:
         if value is not None:
             if value not in MarkerStyle.fillstyles:
-                raise ValueError(f"'{value}' is not a valid fill style.")
+                raise InvalidParameterError(f"'{value}' is not a valid fill style.")
         self._fill_style = value
 
 
@@ -512,6 +547,15 @@ class LegendPatch(LegendElement):
     values between ``0`` and ``1`` (``(0, 0, 1)`` or ``(0, 0, 1, 0.5)``).
     """
 
+    _face_color: Optional[ColorType]
+    _edge_color: Optional[ColorType]
+    _line_width: float
+    _line_style: (
+        Literal["-", "--", "-.", ":", "solid", "dashed", "dashdot", "dotted"]
+        | tuple[float, Sequence]
+    )
+    _hatch: Optional[Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"]]
+
     def __init__(
         self,
         label: str,
@@ -522,7 +566,9 @@ class LegendPatch(LegendElement):
             "-", "--", "-.", ":", "solid", "dashed", "dashdot", "dotted"
         ]
         | tuple[float, Sequence] = "-",
-        hatch: Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"] = None,
+        hatch: Optional[
+            Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"]
+        ] = None,
         alpha: float = 1.0,
     ) -> None:
         self.label = label
@@ -550,19 +596,19 @@ class LegendPatch(LegendElement):
         )
 
     @property
-    def face_color(self) -> ColorType:
+    def face_color(self) -> Optional[ColorType]:
         return self._face_color
 
     @face_color.setter
-    def face_color(self, value: ColorType) -> None:
+    def face_color(self, value: Optional[ColorType]) -> None:
         self._color_setter("face_color", value)
 
     @property
-    def edge_color(self) -> ColorType:
+    def edge_color(self) -> Optional[ColorType]:
         return self._edge_color
 
     @edge_color.setter
-    def edge_color(self, value: ColorType) -> None:
+    def edge_color(self, value: Optional[ColorType]) -> None:
         self._color_setter("edge_color", value)
 
     @property
@@ -591,17 +637,20 @@ class LegendPatch(LegendElement):
         self._line_style_setter("line_style", value)
 
     @property
-    def hatch(self) -> Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"]:
+    def hatch(
+        self,
+    ) -> Optional[Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"]]:
         return self._hatch
 
     @hatch.setter
     def hatch(
-        self, value: Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"]
+        self,
+        value: Optional[Literal["/", "\\", "|", "-", "+", "x", "o", "O", ".", "*"]],
     ) -> None:
         if value is not None:
             # This logic is adapted from matplotlib's hatch validation
             valid_hatch_patterns = set(r"-+|/\xXoO.*")
             invalids = set(value).difference(valid_hatch_patterns)
             if invalids:
-                raise ValueError(f"Invalid hatch pattern(s): {invalids}")
+                raise InvalidParameterError(f"Invalid hatch pattern(s): {invalids}")
         self._hatch = value

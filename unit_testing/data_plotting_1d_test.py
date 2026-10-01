@@ -2,10 +2,11 @@ import unittest
 from random import random
 
 from graphinglib import INHERIT
+from graphinglib.exceptions import IncompatibleArgumentsError
 from matplotlib.collections import PathCollection
 from matplotlib.colors import to_hex, to_rgba
-from matplotlib.pyplot import close, subplots
-from numpy import linspace, ndarray, pi, sin
+from matplotlib.pyplot import close, sca, subplots
+from numpy import allclose, array, linspace, ndarray, pi, sin
 
 from graphinglib.data_plotting_1d import Curve, Histogram, Scatter
 from graphinglib.figure import Figure
@@ -49,10 +50,27 @@ class TestCurve(unittest.TestCase):
             Curve,
         )
 
+    def test_mismatched_xy_lengths_raise_at_construction(self):
+        # The mistake is reported at the Curve(...) call, not later at plotting time.
+        with self.assertRaises(IncompatibleArgumentsError):
+            Curve([0, 1, 2], [0, 1])
+        # It stays catchable as a plain ValueError for backward compatibility.
+        with self.assertRaises(ValueError):
+            Curve([0, 1, 2], [0, 1])
+
+    def test_mismatched_errorbar_length_raises(self):
+        curve = Curve([0, 1, 2], [0, 1, 2])
+        with self.assertRaises(IncompatibleArgumentsError):
+            curve.add_errorbars(y_error=[0.1, 0.2])
+        # Scalars and matching-length arrays are accepted.
+        curve.add_errorbars(y_error=0.1)
+        curve.add_errorbars(y_error=[0.1, 0.2, 0.3])
+
     def test_add_errorbars(self):
         self.testCurve.add_errorbars(0.1, 0.1)
-        self.testCurve.add_errorbars(0.1, [0.2, 0.3] * 100)
-        self.testCurve.add_errorbars([0.2, 0.3] * 100, 0.1)
+        # testCurve has 1000 points, so array-valued errors must be length 1000.
+        self.testCurve.add_errorbars(0.1, [0.2, 0.3] * 500)
+        self.testCurve.add_errorbars([0.2, 0.3] * 500, 0.1)
         self.testCurve.add_errorbars(0.3, None)
         self.testCurve.add_errorbars(None, 0.3)
         self.testCurve.add_errorbars(
@@ -89,6 +107,22 @@ class TestCurve(unittest.TestCase):
         for i, point in enumerate(points):
             self.assertEqual(point._y, 0)
             self.assertAlmostEqual(point._x, i * pi, places=3)
+
+    def test_snapping_interpolation_methods(self):
+        curve = Curve([0, 1, 2, 3], [0, 10, 20, 30])
+        expected = {"nearest": (1, 10), "previous": (1, 10), "next": (2, 20)}
+        for method, (x, y) in expected.items():
+            with self.subTest(method=method):
+                self.assertEqual(
+                    curve.get_coordinates_at_x(1.4, interpolation_method=method),
+                    (x, y),
+                )
+        point = curve.create_point_at_x(1.4, interpolation_method="nearest")
+        self.assertEqual((point._x, point._y), (1, 10))
+        self.assertEqual(
+            curve.get_coordinates_at_y(15, interpolation_method="nearest"), [(1, 10)]
+        )
+        self.assertEqual(curve.get_coordinates_at_x(1.4)[0], 1.4)
 
     def test_curve_is_plotted(self):
         x = linspace(0, 3 * pi, 200)
@@ -175,6 +209,26 @@ class TestCurve(unittest.TestCase):
             self.assertIsInstance(point, Point)
             self.assertAlmostEqual(point._x, points_x[i], places=3)
             self.assertAlmostEqual(point._y, points_y[i], places=3)
+
+    def test_intersection_points_style_list_shorter_than_points(self):
+        # Regression: when a per-point style list is shorter than the number of
+        # intersection points, the surplus points fall back to their defaults
+        # (None label, INHERIT style) instead of receiving the whole list.
+        x = linspace(0, 3 * pi, 1000)
+        other_curve = Curve(x, 0.005 * x**2 + 0.1, "Other Curve", color="k")
+        points = self.testCurve.create_intersection_points(
+            other_curve,
+            labels=["first", "second"],
+            face_colors=["red", "blue"],
+        )
+        self.assertEqual(len(points), 4)
+        self.assertEqual(
+            [point._label for point in points], ["first", "second", None, None]
+        )
+        self.assertEqual(points[0]._face_color, "red")
+        self.assertEqual(points[1]._face_color, "blue")
+        self.assertIs(points[2]._face_color, INHERIT)
+        self.assertIs(points[3]._face_color, INHERIT)
 
     def test_add_curves(self):
         x = linspace(0, 3 * pi, 200)
@@ -446,6 +500,23 @@ class TestScatter(unittest.TestCase):
         for i, point in enumerate(points):
             self.assertEqual(point._y, 0)
             self.assertAlmostEqual(point._x, i * pi, places=3)
+
+    def test_snapping_interpolation_methods(self):
+        scatter = Scatter([0, 1, 2, 3], [0, 10, 20, 30])
+        expected = {"nearest": (1, 10), "previous": (1, 10), "next": (2, 20)}
+        for method, (x, y) in expected.items():
+            with self.subTest(method=method):
+                self.assertEqual(
+                    scatter.get_coordinates_at_x(1.4, interpolation_method=method),
+                    (x, y),
+                )
+        point = scatter.create_point_at_x(1.4, interpolation_method="nearest")
+        self.assertEqual((point._x, point._y), (1, 10))
+        self.assertEqual(
+            scatter.get_coordinates_at_y(15, interpolation_method="nearest"),
+            [(1, 10)],
+        )
+        self.assertEqual(scatter.get_coordinates_at_x(1.4)[0], 1.4)
 
     def test_scatter_is_plotted(self):
         x = linspace(0, 3 * pi, 200)
@@ -966,6 +1037,54 @@ class TestHistogram(unittest.TestCase):
         self.assertEqual(hist_copy._alpha, self.testHist._alpha)
         self.assertEqual(hist_copy._hist_type, self.testHist._hist_type)
         self.assertListEqual(list(hist_copy._data), list(self.testHist._data))
+
+    def test_bin_centers_non_uniform_bins(self):
+        hist = Histogram(
+            [0.5, 1.5, 3, 3.5, 5, 7, 9],
+            bins=array([0, 1, 2, 4, 6, 10]),
+            normalize=False,
+        )
+        expected = (hist.bin_edges[:-1] + hist.bin_edges[1:]) / 2
+        self.assertTrue(allclose(hist.bin_centers, expected))
+
+    def test_bin_heights_default_to_raw_counts_when_normalize_unresolved(self):
+        hist = Histogram([random() for _ in range(100)], 10)
+        self.assertEqual(hist._normalize, INHERIT)
+        self.assertAlmostEqual(sum(hist.bin_heights), 100)
+
+    def test_bin_heights_not_stale_after_rendering(self):
+        # Regression test: rendering resolves `_normalize` by setting the private
+        # attribute directly (bypassing the `normalize` setter), which used to leave
+        # a stale density-normalized histogram cache behind after the post-render
+        # reset restored INHERIT.
+        hist = Histogram([random() for _ in range(100)], 10)
+        hist.add_pdf()
+        figure = Figure(figure_style="plain")
+        figure.add_elements(hist)
+        figure._prepare_figure()
+        close("all")
+        self.assertEqual(hist._normalize, INHERIT)
+        self.assertAlmostEqual(sum(hist.bin_heights), 100)
+
+    def test_pdf_mean_std_lines_use_correct_axes(self):
+        fig, (ax1, ax2) = subplots(1, 2)
+        sca(ax2)
+        hist = Histogram(
+            [random() for _ in range(100)],
+            10,
+            face_color="silver",
+            edge_color="k",
+            hist_type="stepfilled",
+            alpha=0.5,
+            line_width=1,
+            normalize=True,
+            orientation="vertical",
+            show_params=False,
+        )
+        hist.add_pdf(show_mean=True, show_std=True)
+        hist._plot_element(ax1, 0)
+        self.assertEqual(len(ax2.collections), 0)
+        self.assertEqual(len(ax1.collections), 2)
 
 
 if __name__ == "__main__":

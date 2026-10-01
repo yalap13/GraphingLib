@@ -1,18 +1,26 @@
-from .inherit import INHERIT, Inherit
+from __future__ import annotations
+
+from .inherit import INHERIT, Inherit, resolve_or, strip_inherit
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Literal, Optional
+from typing import Literal, Optional, Sequence
 
 import matplotlib.pyplot as plt
 import numpy as np
 import shapely as sh
+import shapely.affinity
 import shapely.ops as ops
 from matplotlib.patches import Polygon as MPLPolygon
 from shapely import LineString
 from shapely import Polygon as ShPolygon
 
 from .data_plotting_1d import Curve
+from .exceptions import (
+    IncompatibleArgumentsError,
+    InvalidParameterError,
+    InvalidParameterTypeError,
+)
 from .graph_elements import Plottable, Point
 
 try:
@@ -200,9 +208,9 @@ class Arrow(Plottable):
             "wedge",
             INHERIT,
         ]:
-            raise ValueError(
-                "Invalid head style. Valid options are: '->', '-|>', '-[', ']->', 'simple', 'fancy', "
-                "'wedge', or INHERIT."
+            raise InvalidParameterError(
+                "style must be one of '->', '-|>', '-[', ']->', 'simple', 'fancy', "
+                f"'wedge', or INHERIT; got {value!r}."
             )
         self._style = value
 
@@ -253,14 +261,16 @@ class Arrow(Plottable):
                 case "-[":
                     style = "]-["
                 case _:
-                    raise ValueError(
-                        "The head style must be '->', '-|>' or '-[' for two-sided arrows."
+                    raise IncompatibleArgumentsError(
+                        "A two-sided arrow requires a head style of '->', '-|>', or "
+                        f"'-['; got {self._style!r}."
                     )
         else:
             style = self._style
 
         if self._head_size != INHERIT:
-            head_length, head_width = self._head_size * 0.4, self._head_size * 0.2
+            head_size = resolve_or(self._head_size, 1)
+            head_length, head_width = head_size * 0.4, head_size * 0.2
 
             # Set specific arrow properties
             match self._style:
@@ -287,7 +297,7 @@ class Arrow(Plottable):
             "linewidth": self._width,
             "alpha": self._alpha,
         }
-        props = {k: v for k, v in props.items() if v != INHERIT}
+        props = strip_inherit(props)
         if self._shrink != 0:
             shrinkPointA, shrinkPointB = self._shrink_points()
             axes.annotate(
@@ -386,19 +396,19 @@ class Line(Plottable):
         self._pointB = value
 
     @property
-    def color(self) -> str:
+    def color(self) -> str | Inherit:
         return self._color
 
     @color.setter
-    def color(self, value: str):
+    def color(self, value: str | Inherit):
         self._color = value
 
     @property
-    def width(self) -> float:
+    def width(self) -> float | Inherit:
         return self._width
 
     @width.setter
-    def width(self, value: float):
+    def width(self, value: float | Inherit):
         self._width = value
 
     @property
@@ -410,19 +420,19 @@ class Line(Plottable):
         self._capped_line = value
 
     @property
-    def cap_width(self) -> float:
+    def cap_width(self) -> float | Inherit:
         return self._cap_width
 
     @cap_width.setter
-    def cap_width(self, value: float):
+    def cap_width(self, value: float | Inherit):
         self._cap_width = value
 
     @property
-    def alpha(self) -> float:
+    def alpha(self) -> float | Inherit:
         return self._alpha
 
     @alpha.setter
-    def alpha(self, value: float):
+    def alpha(self, value: float | Inherit):
         self._alpha = value
 
     def copy(self) -> Self:
@@ -431,9 +441,10 @@ class Line(Plottable):
         """
         return deepcopy(self)
 
-    def _plot_element(self, axes: plt.axes, z_order: int, **kwargs):
+    def _plot_element(self, axes: plt.Axes, z_order: int, **kwargs):
         if self._capped_line:
-            style = f"|-|, widthA={self._cap_width / 2}, widthB={self._cap_width / 2}"
+            cap_width = resolve_or(self._cap_width, 1)
+            style = f"|-|, widthA={cap_width / 2}, widthB={cap_width / 2}"
         else:
             style = "-"
         props = {
@@ -442,7 +453,7 @@ class Line(Plottable):
             "linewidth": self._width,
             "alpha": self._alpha,
         }
-        props = {k: v for k, v in props.items() if v != INHERIT}
+        props = strip_inherit(props)
         axes.annotate(
             "",
             self._pointA,
@@ -491,7 +502,7 @@ class Polygon(Plottable):
 
     def __init__(
         self,
-        vertices: list[tuple[float, float]],
+        vertices: Sequence[tuple[float, float]],
         fill: bool | Inherit = INHERIT,
         edge_color: str | Inherit = INHERIT,
         fill_color: str | Inherit = INHERIT,
@@ -600,7 +611,7 @@ class Polygon(Plottable):
         """
         return Point(*self.get_centroid_coordinates())
 
-    def create_intersection(self, other: Self, copy_style: bool = False) -> Self:
+    def create_intersection(self, other: Self, copy_style: bool = False) -> Polygon:
         """
         Returns the intersection of the polygon with another polygon.
 
@@ -625,7 +636,7 @@ class Polygon(Plottable):
                 list(self._sh_polygon.intersection(other._sh_polygon).exterior.coords)
             )
 
-    def create_union(self, other: Self, copy_style: bool = False) -> Self:
+    def create_union(self, other: Self, copy_style: bool = False) -> Polygon:
         """
         Returns the union of the polygon with another polygon.
 
@@ -650,7 +661,7 @@ class Polygon(Plottable):
                 list(self._sh_polygon.union(other._sh_polygon).exterior.coords)
             )
 
-    def create_difference(self, other: Self, copy_style: bool = False) -> Self:
+    def create_difference(self, other: Self, copy_style: bool = False) -> Polygon:
         """
         Returns the difference of the polygon with another polygon.
 
@@ -677,7 +688,7 @@ class Polygon(Plottable):
 
     def create_symmetric_difference(
         self, other: Self, copy_style: bool = False
-    ) -> list[Self]:
+    ) -> list[Polygon]:
         """
         Returns the symmetric difference of the polygon with another polygon.
 
@@ -695,22 +706,24 @@ class Polygon(Plottable):
         list[:class:`~graphinglib.shapes.Polygon`]
             A list of polygons resulting from the symmetric difference.
         """
-        if copy_style:
-            new_poly = self.copy()
-            new_poly._sh_polygon = self._sh_polygon.symmetric_difference(
-                other._sh_polygon
-            )
-            return new_poly
+        multi_poly = self._sh_polygon.symmetric_difference(other._sh_polygon)
+        if multi_poly.geom_type == "MultiPolygon":
+            polygons = [
+                Polygon(list(p.exterior.coords)) for p in list(multi_poly.geoms)
+            ]
         else:
-            multi_poly = self._sh_polygon.symmetric_difference(other._sh_polygon)
-            if multi_poly.geom_type == "MultiPolygon":
-                return [
-                    Polygon(list(p.exterior.coords)) for p in list(multi_poly.geoms)
-                ]
-            else:
-                return [Polygon(list(multi_poly.exterior.coords))]
+            polygons = [Polygon(list(multi_poly.exterior.coords))]
+        if copy_style:
+            for polygon in polygons:
+                polygon._fill = self._fill
+                polygon._fill_color = self._fill_color
+                polygon._edge_color = self._edge_color
+                polygon._line_width = self._line_width
+                polygon._line_style = self._line_style
+                polygon._fill_alpha = self._fill_alpha
+        return polygons
 
-    def translate(self, dx: float, dy: float) -> Self | None:
+    def translate(self, dx: float, dy: float) -> None:
         """
         Translates the polygon by the specified amount.
 
@@ -728,7 +741,7 @@ class Polygon(Plottable):
         angle: float,
         center: Optional[tuple[float, float]] = None,
         use_rad: bool = False,
-    ) -> Self:
+    ) -> None:
         """
         Rotates the polygon by the specified angle.
 
@@ -754,7 +767,7 @@ class Polygon(Plottable):
         x_scale: float,
         y_scale: float,
         center: Optional[tuple[float, float]] = None,
-    ) -> Self:
+    ) -> None:
         """
         Scales the polygon by the specified factors.
 
@@ -781,7 +794,7 @@ class Polygon(Plottable):
         y_skew: float,
         center: Optional[tuple[float, float]] = None,
         use_rad: bool = False,
-    ) -> Self:
+    ) -> None:
         """
         Skews the polygon by the specified factors.
 
@@ -804,7 +817,7 @@ class Polygon(Plottable):
             self._sh_polygon, xs=x_skew, ys=y_skew, origin=center, use_radians=use_rad
         )
 
-    def split(self, curve: Curve, copy_style: bool = False) -> list[Self]:
+    def split(self, curve: Curve, copy_style: bool = False) -> list[Polygon]:
         """
         Splits the polygon by a curve.
 
@@ -821,7 +834,9 @@ class Polygon(Plottable):
             The list of polygons resulting from the split.
         """
         if not isinstance(curve, Curve):
-            raise TypeError("The curve must be a Curve object")
+            raise InvalidParameterTypeError(
+                f"curve must be a Curve; got {type(curve).__name__}."
+            )
         sh_curve = LineString([(x, y) for x, y in zip(curve._x_data, curve._y_data)])
         split_sh_polygons = ops.split(self._sh_polygon, sh_curve)
         split_sh_polygons = [
@@ -838,7 +853,7 @@ class Polygon(Plottable):
                 polygon._fill_alpha = self._fill_alpha
         return polygons
 
-    def linear_transformation(self, matrix: np.ndarray) -> Self:
+    def linear_transformation(self, matrix: np.ndarray) -> None:
         """
         Applies a transformation matrix to the polygon.
 
@@ -896,18 +911,20 @@ class Polygon(Plottable):
             )
             return [Point(p.x, p.y) for p in intersection.geoms]
         else:
-            raise TypeError("The other object must be a Polygon or a Curve")
+            raise InvalidParameterTypeError(
+                f"other must be a Polygon or a Curve; got {type(other).__name__}."
+            )
 
     def _plot_element(self, axes: plt.Axes, z_order: int, **kwargs):
         # Create a polygon patch for the fill
-        if self._fill:
+        if resolve_or(self._fill, True):
             params = {
                 "alpha": self._fill_alpha,
                 "zorder": z_order,
             }
             if self._fill_color is not None:
                 params["facecolor"] = self._fill_color
-            params = {k: v for k, v in params.items() if v != INHERIT}
+            params = strip_inherit(params)
             polygon_fill = MPLPolygon(self.vertices, **params)
             axes.add_patch(polygon_fill)
         # Create a polygon patch for the edge
@@ -919,7 +936,7 @@ class Polygon(Plottable):
                 "edgecolor": self._edge_color,
                 "zorder": z_order,
             }
-            params = {k: v for k, v in params.items() if v != INHERIT}
+            params = strip_inherit(params)
             polygon_edge = MPLPolygon(self.vertices, **params)
             axes.add_patch(polygon_edge)
 
@@ -1021,7 +1038,7 @@ class Circle(Polygon):
     @radius.setter
     def radius(self, value):
         if value <= 0:
-            raise ValueError("The radius must be positive")
+            raise InvalidParameterError(f"radius must be positive; got {value}.")
         self._sh_polygon = sh.geometry.Point(self.x_center, self.y_center).buffer(
             value, self._num_points // 4
         )
@@ -1041,7 +1058,9 @@ class Circle(Polygon):
     @number_of_points.setter
     def number_of_points(self, value):
         if value < 4:
-            raise ValueError("The number of points must be greater than or equal to 4")
+            raise InvalidParameterError(
+                f"number_of_points must be at least 4; got {value}."
+            )
         self._num_points = value
 
     @property
@@ -1179,7 +1198,7 @@ class Ellipse(Polygon):
     @x_radius.setter
     def x_radius(self, value):
         if value <= 0:
-            raise ValueError("The x radius must be positive")
+            raise InvalidParameterError(f"x_radius must be positive; got {value}.")
         self._rebuild(self.x_center, self.y_center, value, self._y_radius, self._angle)
 
     @property
@@ -1189,7 +1208,7 @@ class Ellipse(Polygon):
     @y_radius.setter
     def y_radius(self, value):
         if value <= 0:
-            raise ValueError("The y radius must be positive")
+            raise InvalidParameterError(f"y_radius must be positive; got {value}.")
         self._rebuild(self.x_center, self.y_center, self._x_radius, value, self._angle)
 
     @property
@@ -1209,7 +1228,9 @@ class Ellipse(Polygon):
     @number_of_points.setter
     def number_of_points(self, value):
         if value < 4:
-            raise ValueError("The number of points must be greater than or equal to 4")
+            raise InvalidParameterError(
+                f"number_of_points must be at least 4; got {value}."
+            )
         self._num_points = value
 
     @property
@@ -1221,7 +1242,7 @@ class Ellipse(Polygon):
     def width(self, value):
         """Controls the width of the ellipse along the x axis."""
         if value <= 0:
-            raise ValueError("The width must be positive")
+            raise InvalidParameterError(f"width must be positive; got {value}.")
         self.x_radius = value / 2
 
     @property
@@ -1233,7 +1254,7 @@ class Ellipse(Polygon):
     def height(self, value):
         """Controls the height of the ellipse along the y axis."""
         if value <= 0:
-            raise ValueError("The height must be positive")
+            raise InvalidParameterError(f"height must be positive; got {value}.")
         self.y_radius = value / 2
 
     @property
@@ -1352,7 +1373,7 @@ class Rectangle(Polygon):
     @width.setter
     def width(self, value):
         if value <= 0:
-            raise ValueError("The width must be positive")
+            raise InvalidParameterError(f"width must be positive; got {value}.")
         self._sh_polygon = ShPolygon(
             [
                 (self.x_bottom_left, self.y_bottom_left),
@@ -1369,7 +1390,7 @@ class Rectangle(Polygon):
     @height.setter
     def height(self, value):
         if value <= 0:
-            raise ValueError("The height must be positive")
+            raise InvalidParameterError(f"height must be positive; got {value}.")
         self._sh_polygon = ShPolygon(
             [
                 (self.x_bottom_left, self.y_bottom_left),
